@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../models/survey_models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
+import 'survey_screen.dart';
 
 class SurveyorCorrectionsScreen extends StatefulWidget {
   const SurveyorCorrectionsScreen({super.key});

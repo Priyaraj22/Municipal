@@ -1,6 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
+import '../services/validation_service.dart';
+import '../models/survey_models.dart';
+import '../services/auth_provider.dart';
+import 'package:provider/provider.dart';
 
 class AiAssistantFab extends StatefulWidget {
   const AiAssistantFab({super.key});
@@ -87,6 +93,7 @@ class _AiAssistantBottomSheetState extends State<AiAssistantBottomSheet> {
   final FlutterTts _tts = FlutterTts();
   String _lang = 'English';
   final List<Map<String, dynamic>> _messages = [];
+  final ScrollController _scrollCtrl = ScrollController();
 
   @override
   void initState() {
@@ -101,22 +108,18 @@ class _AiAssistantBottomSheetState extends State<AiAssistantBottomSheet> {
   Future<void> _initTts() async {
     await _tts.setLanguage("en-US");
     await _tts.setSpeechRate(0.5);
-    await _tts.setVolume(1.0);
-    await _tts.setPitch(1.0);
   }
 
   Future<void> _speak(String text) async {
-    if (_lang == 'Tamil') {
-      await _tts.setLanguage("ta-IN");
-    } else {
-      await _tts.setLanguage("en-US");
-    }
+    if (_lang == 'Tamil') await _tts.setLanguage("ta-IN");
+    else await _tts.setLanguage("en-US");
     await _tts.speak(text);
   }
 
   @override
   void dispose() {
     _tts.stop();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
@@ -129,6 +132,15 @@ class _AiAssistantBottomSheetState extends State<AiAssistantBottomSheet> {
       _messages.add({'isAi': isAi, 'text': text});
     });
     if (isAi) _speak(text);
+    _scrollToBottom();
+  }
+
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+      }
+    });
   }
 
   void _showFaq() {
@@ -158,13 +170,55 @@ class _AiAssistantBottomSheetState extends State<AiAssistantBottomSheet> {
     children: [Padding(padding: const EdgeInsets.all(8), child: Text(a, style: const TextStyle(fontSize: 12)))]
   );
 
+  Future<void> _runSmartValidation() async {
+    _addMessage("✓ Review Current Form", false);
+    setState(() => _isTyping = true);
+    
+    final auth = context.read<AuthProvider>();
+    final prefs = await SharedPreferences.getInstance();
+    final draft = prefs.getString('draft_${auth.collectorName}');
+    
+    await Future.delayed(const Duration(milliseconds: 500));
+    setState(() => _isTyping = false);
+
+    if (draft == null) {
+      _addMessage("I couldn't find an active survey draft to review. Please start filling the form first.", true);
+      return;
+    }
+
+    try {
+      final survey = Survey.fromJson(json.decode(draft));
+      final result = ValidationService.validate(survey);
+      
+      if (!result.hasIssues) {
+        _addMessage("✅ Survey data looks good. You can submit safely.", true);
+      } else {
+        String res = "I've reviewed your form and found some items that need your attention:\n\n";
+        if (result.errors.isNotEmpty) {
+          res += "Needs fixing:\n" + result.errors.join('\n') + "\n\n";
+        }
+        if (result.warnings.isNotEmpty) {
+          res += "Please check:\n" + result.warnings.join('\n');
+        }
+        _addMessage(res, true);
+      }
+    } catch (e) {
+      _addMessage("Sorry, I encountered an error while reviewing the form.", true);
+    }
+  }
+
   Future<void> _handleSend(String text) async {
     if (text.trim().isEmpty) return;
+    if (text.contains("Review Form")) {
+      _runSmartValidation();
+      return;
+    }
+    
     _inputCtrl.clear();
     _addMessage(text, false);
 
     setState(() => _isTyping = true);
-    await Future.delayed(const Duration(milliseconds: 300)); // Faster response
+    await Future.delayed(const Duration(milliseconds: 300));
     setState(() => _isTyping = false);
 
     final q = text.toLowerCase();
@@ -176,33 +230,14 @@ class _AiAssistantBottomSheetState extends State<AiAssistantBottomSheet> {
         res = "BPL stands for Below Poverty Line. Mark families as BPL only if they have a valid BPL/PHH ration card.";
       } else if (q.contains('abha')) {
         res = "ABHA is a 14-digit health ID. You can skip it if the family doesn't have one.";
-      } else if (q.contains('review')) {
-        res = "I've reviewed your form. Please ensure the Family Head name and Door number are filled correctly.";
-      } else if (q.contains('missing')) {
-        res = "Check the 'Members' section. Every family should have at least one member with a Date of Birth.";
-      } else if (q.contains('scheme')) {
-        res = "Based on the data, this family might be eligible for PM-JAY Insurance or Housing subsidies.";
-      } else if (q.contains('explain')) {
-        res = "Which field should I explain? Tap on 'PHR' or 'Smartcard' to learn more.";
       } else if (q.contains('tamil')) {
         _lang = 'Tamil';
         res = "சரி, நான் இனி தமிழில் பதிலளிப்பேன். உங்களுக்கு என்ன உதவி வேண்டும்?";
       }
     } else {
-      // Tamil Responses
       res = "உங்கள் கோரிக்கையை நான் ஆய்வு செய்கிறேன். கணக்கெடுப்பு படிவத்தை நிரப்ப நான் உங்களுக்கு உதவுவேன்.";
       if (q.contains('bpl')) {
         res = "BPL என்பது வறுமைக் கோட்டிற்கு கீழ் உள்ளவர்களைக் குறிக்கும். செல்லுபடியாகும் BPL ரேஷன் கார்டு இருந்தால் மட்டுமே இதைத் தேர்ந்தெடுக்கவும்.";
-      } else if (q.contains('abha')) {
-        res = "ABHA என்பது 14 இலக்க சுகாதார அடையாள எண். அது இல்லை என்றால் அந்த இடத்தைக் காலியாக விடலாம்.";
-      } else if (q.contains('review') || q.contains('படிவம்')) {
-        res = "உங்கள் படிவத்தை நான் சரிபார்த்தேன். குடும்பத் தலைவர் பெயர் மற்றும் கதவு எண் சரியாக உள்ளதா என உறுதிப்படுத்தவும்.";
-      } else if (q.contains('missing') || q.contains('விடுபட்ட')) {
-        res = "உறுப்பினர்கள் பிரிவைச் சரிபார்க்கவும். ஒவ்வொரு குடும்பத்திலும் குறைந்தது ஒரு உறுப்பினருக்காவது பிறந்த தேதி இருக்க வேண்டும்.";
-      } else if (q.contains('scheme') || q.contains('திட்டங்கள்')) {
-        res = "இந்தக் குடும்பம் PM-JAY காப்பீடு அல்லது வீட்டு வசதி திட்டங்களுக்குத் தகுதியுடையதாக இருக்கலாம்.";
-      } else if (q.contains('explain') || q.contains('விளக்கம்')) {
-        res = "எந்தப் புலத்தை நான் விளக்க வேண்டும்? PHR அல்லது Smartcard பற்றி அறிய அவற்றைத் தொடவும்.";
       } else if (q.contains('english')) {
         _lang = 'English';
         res = "Sure, I will respond in English from now on. How can I help you?";
@@ -244,11 +279,11 @@ class _AiAssistantBottomSheetState extends State<AiAssistantBottomSheet> {
                           child: Icon(Icons.smart_toy_rounded, color: AppTheme.blue),
                         ),
                         const SizedBox(width: 12),
-                        Expanded(
+                        const Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Survey Assistant AI', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
+                              Text('Survey Assistant AI', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
                               Text('Helping collectors complete surveys accurately', style: TextStyle(color: AppTheme.ink3, fontSize: 12)),
                             ],
                           ),
@@ -264,7 +299,7 @@ class _AiAssistantBottomSheetState extends State<AiAssistantBottomSheet> {
               // Chat Area
               Expanded(
                 child: ListView.builder(
-                  controller: scrollController,
+                  controller: _scrollCtrl,
                   padding: const EdgeInsets.all(16),
                   itemCount: _messages.length + (_isTyping ? 1 : 0),
                   itemBuilder: (context, index) {
@@ -307,10 +342,10 @@ class _AiAssistantBottomSheetState extends State<AiAssistantBottomSheet> {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Row(
                   children: [
-                    _smartBtn('✓ Review Form', Icons.fact_check_rounded),
-                    _smartBtn('🔍 Missing Fields', Icons.find_in_page_rounded),
-                    _smartBtn('💡 Suggest Schemes', Icons.lightbulb_rounded),
-                    _smartBtn('❓ Explain Field', Icons.help_outline_rounded),
+                    _smartBtn('✓ Review Form', Icons.fact_check_rounded, _runSmartValidation),
+                    _smartBtn('🔍 Missing Fields', Icons.find_in_page_rounded, () => _handleSend('Missing Fields')),
+                    _smartBtn('💡 Suggest Schemes', Icons.lightbulb_rounded, () => _handleSend('Suggest Schemes')),
+                    _smartBtn('❓ Explain Field', Icons.help_outline_rounded, () => _handleSend('Explain Field')),
                   ],
                 ),
               ),
@@ -349,13 +384,13 @@ class _AiAssistantBottomSheetState extends State<AiAssistantBottomSheet> {
     );
   }
 
-  Widget _smartBtn(String label, IconData icon) {
+  Widget _smartBtn(String label, IconData icon, VoidCallback onTap) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: ActionChip(
         avatar: Icon(icon, size: 14, color: AppTheme.blue),
         label: Text(label, style: const TextStyle(fontSize: 11)),
-        onPressed: () => _handleSend(label),
+        onPressed: onTap,
         backgroundColor: const Color(0xFFEBF2FF),
         side: BorderSide.none,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),

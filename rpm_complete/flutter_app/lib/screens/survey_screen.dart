@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/survey_models.dart';
 import '../services/auth_provider.dart';
 import '../services/api_service.dart';
+import '../services/validation_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 import 'member_form.dart';
@@ -263,6 +264,59 @@ class _SurveyScreenState extends State<SurveyScreen> {
       members: _members,
       couples: _couples,
     );
+
+    // AI Smart Validation before actual submission
+    final validation = ValidationService.validate(survey);
+    if (!validation.isValid) {
+      setState(() => _submitting = false);
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('❌ Validation Errors', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: validation.errors.map((e) => Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Text(e, style: const TextStyle(fontSize: 13)),
+            )).toList(),
+          ),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fix Issues'))],
+        ),
+      );
+      return;
+    }
+
+    if (validation.warnings.isNotEmpty) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('⚠ Validation Warnings', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Please review the following items:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              ...validation.warnings.map((w) => Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Text(w, style: const TextStyle(fontSize: 12)),
+              )),
+              const SizedBox(height: 12),
+              const Text('Do you still want to proceed?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Go Back')),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Proceed Anyway')),
+          ],
+        ),
+      );
+      if (proceed != true) {
+        setState(() => _submitting = false);
+        return;
+      }
+    }
 
     try {
       if (widget.existing != null && widget.existing!.id != null) {
