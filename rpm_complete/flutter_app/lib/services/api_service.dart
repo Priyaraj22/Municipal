@@ -145,6 +145,12 @@ class ApiService {
     return list.map((c) => CorrectionRequest.fromJson(c as Map<String, dynamic>)).toList();
   }
 
+  static Future<List<CorrectionRequest>> getMyCorrections(String surveyId) async {
+    final r = await _fetch('/complaints/corrections/citizen?survey_id=${Uri.encodeComponent(surveyId)}');
+    final list = r as List;
+    return list.map((c) => CorrectionRequest.fromJson(c as Map<String, dynamic>)).toList();
+  }
+
   static Future<void> approveCorrection(int id) async {
     await _fetch('/complaints/corrections/$id/approve', method: 'PUT');
   }

@@ -34,18 +34,21 @@ class _RecordsScreenState extends State<RecordsScreen> {
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     setState(() => _loading = true);
     try {
       final auth = context.read<AuthProvider>();
       final surveys = await ApiService.getSurveys(
         collector: auth.collectorName?.trim(),
       );
+      if (!mounted) return;
       setState(() {
         _surveys = surveys;
         _applyFilter();
         _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _loading = false);
       if (mounted) showToast(context, e.toString(), isError: true);
     }
@@ -113,20 +116,28 @@ class _RecordsScreenState extends State<RecordsScreen> {
         // Stats row
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            alignment: WrapAlignment.spaceBetween,
             children: [
               Text('${_filtered.length} records',
                   style: const TextStyle(fontSize: 13, color: AppTheme.ink3)),
-              const Spacer(),
-              TextButton.icon(
-                onPressed: _exportExcel,
-                icon: const Icon(Icons.download_rounded, size: 16, color: AppTheme.blue),
-                label: const Text('Export Excel', style: TextStyle(color: AppTheme.blue)),
-              ),
-              TextButton.icon(
-                onPressed: _load,
-                icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('Refresh'),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton.icon(
+                    onPressed: _exportExcel,
+                    icon: const Icon(Icons.download_rounded, size: 16, color: AppTheme.blue),
+                    label: const Text('Excel', style: TextStyle(color: AppTheme.blue, fontSize: 12)),
+                  ),
+                  TextButton.icon(
+                    onPressed: _load,
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: const Text('Refresh', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
               ),
             ],
           ),
@@ -190,31 +201,21 @@ class _SurveyTile extends StatelessWidget {
                     child: Text(
                       survey.head.isEmpty ? 'Unknown Family' : survey.head,
                       style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (survey.status == 'Hold')
+                    Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange)),
+                      child: const Text('HOLD', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.orange)),
+                    ),
                   IconButton(
-                    icon: const Icon(Icons.edit, size: 20, color: AppTheme.blue),
+                    icon: const Icon(Icons.edit, size: 18, color: AppTheme.blue),
                     onPressed: onEdit,
                     visualDensity: VisualDensity.compact,
                   ),
-                  if (survey.bpl.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: survey.bpl == 'BPL'
-                            ? const Color(0xFFFEF3C7)
-                            : const Color(0xFFEBF2FF),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        survey.bpl,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: survey.bpl == 'BPL' ? AppTheme.amber : AppTheme.blue,
-                        ),
-                      ),
-                    ),
                 ],
               ),
               const SizedBox(height: 6),

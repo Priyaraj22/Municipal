@@ -282,6 +282,7 @@ class Survey {
   String housing;
   String water;
   String toilet;
+  String status;
   String? collector;
   String? collectorWard;
   String? date;
@@ -307,6 +308,7 @@ class Survey {
     this.housing = '',
     this.water = '',
     this.toilet = '',
+    this.status = 'Submitted',
     this.collector,
     this.collectorWard,
     this.date,
@@ -334,6 +336,7 @@ class Survey {
         housing:       j['housing'] ?? '',
         water:         j['water'] ?? '',
         toilet:        j['toilet'] ?? '',
+        status:        j['status'] ?? 'Submitted',
         collector:     j['collector'],
         collectorWard: j['collectorWard'] ?? j['collector_ward'],
         date:          j['date'] ?? j['survey_date'],
@@ -351,7 +354,8 @@ class Survey {
         'phr': phr, 'smartcard': smartcard,
         'bpl': bpl, 'caste': caste, 'insurance': insurance,
         'housing': housing, 'water': water, 'toilet': toilet,
-        'collector': collector, 'collector_ward': collectorWard,
+        'status': status,
+        'collector': collector, 'collectorWard': collectorWard,
         'members': members.map((m) => m.toJson()).toList(),
         'couples': couples.map((c) => c.toJson()).toList(),
       };
@@ -432,6 +436,8 @@ class Complaint {
   final String street;
   final String status;
   final String? createdAt;
+  final String? feedback;
+  final int? rating;
 
   Complaint({
     this.id,
@@ -442,6 +448,8 @@ class Complaint {
     required this.street,
     this.status = 'Received',
     this.createdAt,
+    this.feedback,
+    this.rating,
   });
 
   factory Complaint.fromJson(Map<String, dynamic> j) => Complaint(
@@ -453,6 +461,8 @@ class Complaint {
         street:        j['street'] ?? '',
         status:        j['status'] ?? 'Received',
         createdAt:     j['created_at'],
+        feedback:      j['citizen_feedback'],
+        rating:        j['citizen_rating'],
       );
 
   Map<String, dynamic> toJson() => {

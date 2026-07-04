@@ -19,6 +19,7 @@ class CitizenHomeScreen extends StatefulWidget {
 class _CitizenHomeScreenState extends State<CitizenHomeScreen> {
   Survey? _myFamily;
   List<Complaint> _myComplaints = [];
+  List<CorrectionRequest> _myCorrections = [];
   bool _loading = true;
 
   @override
@@ -34,12 +35,22 @@ class _CitizenHomeScreenState extends State<CitizenHomeScreen> {
       final auth = context.read<AuthProvider>();
       final surveys = await ApiService.getSurveys(); 
       final complaints = await ApiService.getMyComplaints(auth.citizenPhone ?? '');
-
-      setState(() {
-        if (surveys.isNotEmpty) _myFamily = surveys[0];
-        _myComplaints = complaints;
-        _loading = false;
-      });
+      
+      if (surveys.isNotEmpty) {
+        final surveyId = surveys[0].id!;
+        final corrections = await ApiService.getMyCorrections(surveyId);
+        setState(() {
+          _myFamily = surveys[0];
+          _myComplaints = complaints;
+          _myCorrections = corrections;
+          _loading = false;
+        });
+      } else {
+        setState(() {
+          _myComplaints = complaints;
+          _loading = false;
+        });
+      }
     } catch (e) {
       if (mounted) {
         showToast(context, 'Failed to load data: $e', isError: true);
@@ -78,6 +89,8 @@ class _CitizenHomeScreenState extends State<CitizenHomeScreen> {
               ],
               const SizedBox(height: 20),
               _buildActionButtons(),
+              const SizedBox(height: 20),
+              _buildCorrectionsList(),
               const SizedBox(height: 20),
               _buildComplaintsList(),
               const SizedBox(height: 40),
@@ -242,6 +255,30 @@ class _CitizenHomeScreenState extends State<CitizenHomeScreen> {
     );
   }
 
+  Widget _buildCorrectionsList() {
+    if (_myCorrections.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Correction Requests Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 12),
+        ..._myCorrections.map((r) => Card(
+          child: ListTile(
+            leading: Icon(r.status == 'Applied' ? Icons.check_circle : Icons.pending_actions, 
+                color: r.status == 'Applied' ? Colors.green : Colors.orange),
+            title: Text(r.fieldName),
+            subtitle: Text('Change to: ${r.newValue}'),
+            trailing: Text(r.status, style: TextStyle(
+              fontWeight: FontWeight.bold, 
+              color: r.status == 'Applied' ? Colors.green : Colors.orange,
+              fontSize: 11
+            )),
+          ),
+        )),
+      ],
+    );
+  }
+
   Widget _buildComplaintsList() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -275,20 +312,31 @@ class _CitizenHomeScreenState extends State<CitizenHomeScreen> {
                 ),
                 if (c.status == 'Resolved')
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.end,
                       children: [
-                        TextButton.icon(
+                        OutlinedButton.icon(
                           onPressed: () => _handleSatisfied(c),
-                          icon: const Icon(Icons.thumb_up_alt_outlined, size: 16, color: Colors.green),
-                          label: const Text('I am Satisfied', style: TextStyle(color: Colors.green, fontSize: 12)),
+                          icon: const Icon(Icons.thumb_up_alt_outlined, size: 14, color: Colors.green),
+                          label: const Text('Satisfied', style: TextStyle(color: Colors.green, fontSize: 11)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.green),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            minimumSize: const Size(0, 32),
+                          ),
                         ),
-                        const SizedBox(width: 8),
-                        TextButton.icon(
+                        OutlinedButton.icon(
                           onPressed: () => _handleReopen(c),
-                          icon: const Icon(Icons.replay_rounded, size: 16, color: Colors.red),
-                          label: const Text('Not Satisfied / Reopen', style: TextStyle(color: Colors.red, fontSize: 12)),
+                          icon: const Icon(Icons.replay_rounded, size: 14, color: Colors.red),
+                          label: const Text('Not Satisfied / Reopen', style: TextStyle(color: Colors.red, fontSize: 11)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.red),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            minimumSize: const Size(0, 32),
+                          ),
                         ),
                       ],
                     ),
@@ -392,24 +440,22 @@ class _CitizenHomeScreenState extends State<CitizenHomeScreen> {
         if (canCorrect)
           IconButton(
             icon: const Icon(Icons.edit_note, size: 18, color: AppTheme.blueLight),
-            onPressed: () => _openCorrectionForm(contextStr != null ? '$contextStr -> $label' : label, value),
+            onPressed: () async {
+               final res = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CorrectionFormScreen(
+                    surveyId: _myFamily!.id!,
+                    fieldName: contextStr != null ? '$contextStr -> $label' : label,
+                    currentVal: value,
+                  ),
+                ),
+              );
+              if (res == true) _loadData();
+            },
             visualDensity: VisualDensity.compact,
           )
       ]),
-    );
-  }
-
-  void _openCorrectionForm(String field, String current) {
-    if (_myFamily == null) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => CorrectionFormScreen(
-          surveyId: _myFamily!.id!,
-          fieldName: field,
-          currentVal: current,
-        ),
-      ),
     );
   }
 

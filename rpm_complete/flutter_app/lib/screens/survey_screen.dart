@@ -223,8 +223,8 @@ class _SurveyScreenState extends State<SurveyScreen> {
     return true;
   }
 
-  Future<void> _submitSurvey() async {
-    if (_members.isEmpty) {
+  Future<void> _submitSurvey({bool hold = false}) async {
+    if (_members.isEmpty && !hold) {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -259,61 +259,33 @@ class _SurveyScreenState extends State<SurveyScreen> {
       housing: _housing ?? '',
       water: _water ?? '',
       toilet: _toilet ?? '',
+      status: hold ? 'Hold' : 'Submitted',
       collector: auth.collectorName?.trim(),
       collectorWard: auth.collectorWard?.trim(),
       members: _members,
       couples: _couples,
     );
 
-    // AI Smart Validation before actual submission
-    final validation = ValidationService.validate(survey);
-    if (!validation.isValid) {
-      setState(() => _submitting = false);
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('❌ Validation Errors', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: validation.errors.map((e) => Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: Text(e, style: const TextStyle(fontSize: 13)),
-            )).toList(),
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fix Issues'))],
-        ),
-      );
-      return;
-    }
-
-    if (validation.warnings.isNotEmpty) {
-      final proceed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('⚠ Validation Warnings', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Please review the following items:', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              ...validation.warnings.map((w) => Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Text(w, style: const TextStyle(fontSize: 12)),
-              )),
-              const SizedBox(height: 12),
-              const Text('Do you still want to proceed?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Go Back')),
-            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Proceed Anyway')),
-          ],
-        ),
-      );
-      if (proceed != true) {
+    // AI Smart Validation (Skip full validation if just holding)
+    if (!hold) {
+      final validation = ValidationService.validate(survey);
+      if (!validation.isValid) {
         setState(() => _submitting = false);
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('❌ Validation Errors', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: validation.errors.map((e) => Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Text(e, style: const TextStyle(fontSize: 13)),
+              )).toList(),
+            ),
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fix Issues'))],
+          ),
+        );
         return;
       }
     }
@@ -322,7 +294,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
       if (widget.existing != null && widget.existing!.id != null) {
         await ApiService.updateSurvey(widget.existing!.id!, survey);
         if (mounted) {
-          showToast(context, '✅ Survey updated successfully! / புதுப்பிக்கப்பட்டது');
+          showToast(context, hold ? '📥 Survey put on hold!' : '✅ Survey updated successfully!');
           Navigator.pop(context, true);
         }
       } else {
@@ -331,7 +303,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('draft_${auth.collectorName}');
         if (mounted) {
-          showToast(context, '✅ Survey submitted successfully! / சமர்ப்பிக்கப்பட்டது');
+          showToast(context, hold ? '📥 Survey put on hold!' : '✅ Survey submitted successfully!');
           _clearForm();
           if (Navigator.canPop(context)) Navigator.pop(context, true);
         }
@@ -415,17 +387,21 @@ class _CollectorBanner extends StatelessWidget {
         children: [
           const Text('🪪', style: TextStyle(fontSize: 20)),
           const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${auth.collectorName ?? 'Surveyor'} — ${auth.collectorWard ?? ''}',
-                style: const TextStyle(
-                    fontWeight: FontWeight.w600, fontSize: 13, color: AppTheme.blue),
-              ),
-              const Text('பதிவு செய்யும் ஊழியர் விவரம்',
-                  style: TextStyle(fontSize: 11, color: AppTheme.ink3)),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${auth.collectorName ?? 'Surveyor'} — ${auth.collectorWard ?? ''}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 13, color: AppTheme.blue),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const Text('பதிவு செய்யும் ஊழியர் விவரம்',
+                    style: TextStyle(fontSize: 11, color: AppTheme.ink3)),
+              ],
+            ),
           ),
         ],
       ),
@@ -516,18 +492,36 @@ class _Step0Family extends StatelessWidget {
         ),
 
         const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            ElevatedButton(
-              onPressed: () {
-                if (s._validateStep0()) s.setState(() => s._step = 1);
-              },
-              child: const Text('அடுத்து: உறுப்பினர்கள் → Next'),
-            ),
-          ],
+        Padding(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: TextButton.icon(
+                  onPressed: s._submitting ? null : () {
+                    if (s._streetCtrl.text.isEmpty || s._doorCtrl.text.isEmpty || s._headCtrl.text.isEmpty) {
+                      showToast(context, 'Fill Head Name, Door No & Street to Hold', isError: true);
+                      return;
+                    }
+                    s._submitSurvey(hold: true);
+                  },
+                  icon: const Icon(Icons.save_outlined, size: 18, color: Colors.orange),
+                  label: const Text('Save Draft / சேமி',
+                      style: TextStyle(color: Colors.orange, fontSize: 11),
+                      overflow: TextOverflow.ellipsis),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () {
+                  if (s._validateStep0()) s.setState(() => s._step = 1);
+                },
+                child: const Text('Next / அடுத்து →', style: TextStyle(fontSize: 13)),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 24),
       ],
     );
   }
@@ -570,9 +564,17 @@ class _Step1Members extends StatelessWidget {
               onPressed: () => s.setState(() => s._step = 0),
               child: const Text('← Back'),
             ),
-            ElevatedButton(
-              onPressed: () => s.setState(() => s._step = 2),
-              child: const Text('அடுத்து: தம்பதியர் → Next'),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => s.setState(() => s._step = 2),
+                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12)),
+                child: const Text('Next: Couples / அடுத்து →', 
+                    style: TextStyle(fontSize: 12), 
+                    textAlign: TextAlign.center,
+                    maxLines: 1, 
+                    overflow: TextOverflow.ellipsis),
+              ),
             ),
           ],
         ),
@@ -665,9 +667,17 @@ class _Step2Couples extends StatelessWidget {
               onPressed: () => s.setState(() => s._step = 1),
               child: const Text('← Back'),
             ),
-            ElevatedButton(
-              onPressed: () => s.setState(() => s._step = 3),
-              child: const Text('மதிப்பாய்வு → Review'),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => s.setState(() => s._step = 3),
+                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12)),
+                child: const Text('Review / மதிப்பாய்வு →', 
+                    style: TextStyle(fontSize: 12), 
+                    textAlign: TextAlign.center,
+                    maxLines: 1, 
+                    overflow: TextOverflow.ellipsis),
+              ),
             ),
           ],
         ),
@@ -706,12 +716,15 @@ class _Step3Review extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(children: [
-                  Text('✅', style: TextStyle(fontSize: 22)),
-                  SizedBox(width: 10),
-                  Text('Review Before Submission',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                ]),
+          const Row(children: [
+            Text('✅', style: TextStyle(fontSize: 22)),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text('Review Before Submission',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  overflow: TextOverflow.ellipsis),
+            ),
+          ]),
                 const Divider(height: 24),
                 _ReviewRow('Ward', s._ward ?? '-'),
                 _ReviewRow('Door No.', s._doorCtrl.text),
@@ -738,14 +751,29 @@ class _Step3Review extends StatelessWidget {
               onPressed: () => s.setState(() => s._step = 2),
               child: const Text('← Back'),
             ),
-            ElevatedButton(
-              onPressed: s._submitting ? null : s._submitSurvey,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.blue,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: s._submitting ? null : () => s._submitSurvey(hold: true),
+                    icon: const Icon(Icons.save_outlined, size: 18, color: Colors.orange),
+                    label: const Text('Save Draft', style: TextStyle(color: Colors.orange, fontSize: 13)),
+                  ),
+                  ElevatedButton(
+                    onPressed: s._submitting ? null : () => s._submitSurvey(hold: false),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.blue,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    ),
+                    child: const Text('✅ Submit',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  ),
+                ],
               ),
-              child: const Text('✅ சமர்ப்பிக்க / Submit Survey',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             ),
           ],
         ),

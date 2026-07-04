@@ -78,11 +78,17 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
       _deathDateCtrl.text = m.deathDate;
       _deathReasonCtrl.text = m.deathReason;
       _treatmentPlace = m.treatmentPlace.isEmpty ? null : m.treatmentPlace;
+      if (_treatmentPlace != null && !['None', 'Government Hospital', 'PHC (Primary Health Centre)', 'Private Hospital', 'Sub-Centre', 'Not under treatment'].contains(_treatmentPlace)) {
+        _treatmentOtherCtrl.text = _treatmentPlace!;
+        _treatmentPlace = 'Others';
+      }
+
       _selectedSchemes = m.schemes.isEmpty ? [] : m.schemes.split(', ');
       _gender = m.gender.isEmpty ? null : m.gender;
       _income = m.income.isEmpty ? null : m.income;
       _blood = m.blood.isEmpty ? null : m.blood;
       _marital = m.marital.isEmpty ? null : m.marital;
+      
       _edu = m.edu.isEmpty ? null : m.edu;
       if (_edu != null && !['No Formal Education', 'Pre-School / Anganwadi', 'Primary (1–5)', 'Upper Primary (6–8)', 'Secondary (9–10)', 'Higher Secondary (11–12)', 'Diploma / ITI', 'Undergraduate', 'Postgraduate', 'Professional (MBBS/BE etc.)'].contains(_edu)) {
         _eduOtherCtrl.text = _edu!;
@@ -117,12 +123,6 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
       if (_chronicCD != null && !['TB', 'Malaria', 'Dengue', 'HIV/AIDS', 'Hepatitis'].contains(_chronicCD)) {
         _cdOtherCtrl.text = _chronicCD!;
         _chronicCD = 'Others';
-      }
-
-      _treatmentPlace = m.treatmentPlace.isEmpty ? null : m.treatmentPlace;
-      if (_treatmentPlace != null && !['None', 'Government Hospital', 'PHC (Primary Health Centre)', 'Private Hospital', 'Sub-Centre', 'Not under treatment'].contains(_treatmentPlace)) {
-        _treatmentOtherCtrl.text = _treatmentPlace!;
-        _treatmentPlace = 'Others';
       }
 
       _hasDisability = (m.disability.isNotEmpty && m.disability != 'None') ? 'Yes' : 'No';
@@ -233,7 +233,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
               'Grandson',
               'Granddaughter',
               'Others'
-            ], _relationship, (v) => setState(() => _relationship = v)),
+            ], _relationship, (v) => setState(() => _relationship = v), hint: '— Select —'),
             if (_relationship == 'Others') _txt('Specify Relationship', _relOtherCtrl, 'Specify'),
 
             _txt('Date of Birth', _dobCtrl, 'YYYY-MM-DD', isDate: true, onDateSelected: (v) => _calculateAge(v)),
@@ -491,34 +491,42 @@ class MemberCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         leading: CircleAvatar(
+          radius: 18,
           backgroundColor: const Color(0xFFEBF2FF),
           child: Text('${index + 1}',
-              style: const TextStyle(color: AppTheme.blue, fontWeight: FontWeight.w700)),
+              style: const TextStyle(color: AppTheme.blue, fontWeight: FontWeight.w700, fontSize: 12)),
         ),
         title: Text(member.name.isEmpty ? 'Unnamed' : member.name,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis),
         subtitle: Text(
-          [if (member.rel.isNotEmpty) member.rel, if (member.age.isNotEmpty) 'Age: ${member.age}',
-            if (member.gender.isNotEmpty) member.gender].join(' · '),
+          [if (member.rel.isNotEmpty) member.rel, if (member.age.isNotEmpty) 'Age: ${member.age}'].join(' · '),
           style: const TextStyle(fontSize: 11),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
-        trailing: IntrinsicWidth(
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit, size: 18, color: AppTheme.blue),
-                onPressed: onEdit,
-                visualDensity: VisualDensity.compact,
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete, size: 18, color: AppTheme.rose),
-                onPressed: onDelete,
-                visualDensity: VisualDensity.compact,
-              ),
-            ],
-          ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, size: 18, color: AppTheme.blue),
+              onPressed: onEdit,
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+            const SizedBox(width: 12),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 18, color: AppTheme.rose),
+              onPressed: onDelete,
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
         ),
       ),
     );

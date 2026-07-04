@@ -72,7 +72,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               physics: const NeverScrollableScrollPhysics(),
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
-              childAspectRatio: 2.2,
+              childAspectRatio: 1.8,
               children: [
                 StatCard(emoji: '🏠', value: '${d.families}', label: 'Families / குடும்பங்கள்', color: AppTheme.teal),
                 StatCard(emoji: '👥', value: '${d.members}', label: 'Members / உறுப்பினர்கள்', color: AppTheme.blue),

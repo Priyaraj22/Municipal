@@ -142,13 +142,17 @@ class _AllRecordsScreenState extends State<AllRecordsScreen> {
                 onChanged: (v) { _search = v; _applyFilter(); },
               ),
               const SizedBox(height: 8),
-              Row(
+              // Use Wrap instead of Row for filters to prevent overflow
+              Wrap(
+                spacing: 4,
+                runSpacing: 8,
                 children: [
-                  Expanded(
+                  SizedBox(
+                    width: (MediaQuery.of(context).size.width - 40) / 2,
                     child: DropdownButtonFormField<String>(
                       isExpanded: true,
                       value: _filterWard,
-                      hint: const Text('All Wards', style: TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis),
+                      hint: const Text('Ward', style: TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis),
                       decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
                       items: [
                         const DropdownMenuItem(value: null, child: Text('All Wards', style: TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis)),
@@ -157,13 +161,13 @@ class _AllRecordsScreenState extends State<AllRecordsScreen> {
                       onChanged: (v) { setState(() => _filterWard = v); _applyFilter(); },
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  Expanded(
+                  SizedBox(
+                    width: (MediaQuery.of(context).size.width - 48) / 4,
                     child: DropdownButtonFormField<String>(
                       isExpanded: true,
                       value: _filterBpl,
-                      hint: const Text('BPL/APL', style: TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis),
-                      decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
+                      hint: const Text('BPL', style: TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis),
+                      decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8)),
                       items: [
                         const DropdownMenuItem(value: null, child: Text('All', style: TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis)),
                         ...['BPL', 'APL', 'Unknown'].map((v) =>
@@ -172,13 +176,13 @@ class _AllRecordsScreenState extends State<AllRecordsScreen> {
                       onChanged: (v) { setState(() => _filterBpl = v); _applyFilter(); },
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  Expanded(
+                  SizedBox(
+                    width: (MediaQuery.of(context).size.width - 48) / 4,
                     child: DropdownButtonFormField<String>(
                       isExpanded: true,
                       value: _filterCaste,
-                      hint: const Text('Caste', style: TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis),
-                      decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
+                      hint: const Text('Caste', style: TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis),
+                      decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8)),
                       items: [
                         const DropdownMenuItem(value: null, child: Text('All', style: TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis)),
                         ...['SC', 'ST', 'MBC', 'BC', 'OC'].map((v) =>
@@ -196,25 +200,25 @@ class _AllRecordsScreenState extends State<AllRecordsScreen> {
         // Action bar
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
+          child: Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text('${_filtered.length} records',
-                  style: const TextStyle(fontSize: 13, color: AppTheme.ink3)),
-              const Spacer(),
-              TextButton.icon(
-                onPressed: _exportExcel,
-                icon: const Icon(Icons.download_rounded, size: 16, color: AppTheme.blue),
-                label: const Text('Master Excel', style: TextStyle(color: AppTheme.blue)),
-              ),
-              TextButton.icon(
-                onPressed: _load,
-                icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('Refresh'),
-              ),
-              TextButton.icon(
-                onPressed: _confirmClearAll,
-                icon: const Icon(Icons.delete_outline, size: 16, color: AppTheme.rose),
-                label: const Text('Clear All', style: TextStyle(color: AppTheme.rose)),
+                  style: const TextStyle(fontSize: 12, color: AppTheme.ink3)),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton.icon(
+                    onPressed: _exportExcel,
+                    icon: const Icon(Icons.download_rounded, size: 14, color: AppTheme.blue),
+                    label: const Text('Master', style: TextStyle(color: AppTheme.blue, fontSize: 11)),
+                  ),
+                  IconButton(onPressed: _load, icon: const Icon(Icons.refresh, size: 18), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+                  IconButton(onPressed: _confirmClearAll, icon: const Icon(Icons.delete_outline, size: 18, color: AppTheme.rose), padding: const EdgeInsets.only(left: 8), constraints: const BoxConstraints()),
+                ],
               ),
             ],
           ),
@@ -286,10 +290,11 @@ class _AdminSurveyTile extends StatelessWidget {
               Row(children: [
                 Expanded(
                   child: Text(survey.head.isEmpty ? 'Unknown' : survey.head,
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                      overflow: TextOverflow.ellipsis),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.edit, size: 20, color: AppTheme.blue),
+                  icon: const Icon(Icons.edit, size: 18, color: AppTheme.blue),
                   onPressed: () async {
                     final res = await Navigator.push(
                       context,
@@ -303,13 +308,14 @@ class _AdminSurveyTile extends StatelessWidget {
                 ),
                 if (survey.bpl.isNotEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    margin: const EdgeInsets.only(left: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: survey.bpl == 'BPL' ? const Color(0xFFFEF3C7) : const Color(0xFFEBF2FF),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(survey.bpl, style: TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w600,
+                      fontSize: 10, fontWeight: FontWeight.w600,
                       color: survey.bpl == 'BPL' ? AppTheme.amber : AppTheme.blue,
                     )),
                   ),
@@ -321,15 +327,18 @@ class _AdminSurveyTile extends StatelessWidget {
                 Text('Surveyor: ${survey.collector}',
                     style: const TextStyle(fontSize: 11, color: AppTheme.ink3)),
               const SizedBox(height: 6),
-              Row(children: [
-                _pill('👥 ${survey.members.length}'),
-                const SizedBox(width: 6),
-                if (survey.caste.isNotEmpty) _pill(survey.caste),
-                if (survey.insurance.isNotEmpty) ...[const SizedBox(width: 6), _pill('🏥 ${survey.insurance}')],
-                const Spacer(),
-                Text(survey.date?.split('T').first ?? '',
-                    style: const TextStyle(fontSize: 11, color: AppTheme.ink3)),
-              ]),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  _pill('👥 ${survey.members.length}'),
+                  if (survey.caste.isNotEmpty) _pill(survey.caste),
+                  if (survey.insurance.isNotEmpty) _pill('🏥 ${survey.insurance}'),
+                  Text(survey.date?.split('T').first ?? '',
+                      style: const TextStyle(fontSize: 11, color: AppTheme.ink3)),
+                ],
+              ),
             ],
           ),
         ),
