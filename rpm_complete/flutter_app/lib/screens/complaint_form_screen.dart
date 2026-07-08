@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_provider.dart';
 import '../services/api_service.dart';
+import '../services/validation_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 
@@ -23,6 +24,22 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
   bool _submitting = false;
   final List<File> _photos = [];
   final ImagePicker _picker = ImagePicker();
+  final Map<String, String?> _errors = {};
+
+  void _validateField(String field, String value) {
+    setState(() {
+      switch (field) {
+        case 'issueType': _errors['issueType'] = ValidationService.validateIssueType(value); break;
+        case 'description': _errors['description'] = ValidationService.validateRemarks(value); break;
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _descCtrl.addListener(() => _validateField('description', _descCtrl.text));
+  }
 
   final List<String> _issues = [
     'Water Supply / குடிநீர்',
@@ -52,8 +69,11 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
   }
 
   Future<void> _submit() async {
-    if (_issueType == null) {
-      showToast(context, 'Please select issue type', isError: true);
+    _validateField('issueType', _issueType ?? '');
+    _validateField('description', _descCtrl.text);
+
+    if (_errors.values.any((e) => e != null)) {
+      showToast(context, 'Please fix the errors', isError: true);
       return;
     }
     if (_photos.length < 2) {
@@ -112,8 +132,12 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
                 DropdownButtonFormField<String>(
                   value: _issueType,
                   hint: const Text('— Select Issue —'),
+                  decoration: InputDecoration(errorText: _errors['issueType']),
                   items: _issues.map((i) => DropdownMenuItem(value: i, child: Text(i))).toList(),
-                  onChanged: (v) => setState(() => _issueType = v),
+                  onChanged: (v) {
+                    setState(() => _issueType = v);
+                    _validateField('issueType', v ?? '');
+                  },
                 ),
                 const SizedBox(height: 20),
                 
@@ -121,7 +145,12 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
                 TextField(
                   controller: _descCtrl,
                   maxLines: 4,
-                  decoration: const InputDecoration(hintText: 'Enter more details...'),
+                  decoration: InputDecoration(
+                    hintText: 'Enter more details...',
+                    errorText: _errors['description'],
+                    enabledBorder: _errors['description'] != null ? const OutlineInputBorder(borderSide: BorderSide(color: AppTheme.rose, width: 1)) : null,
+                    focusedBorder: _errors['description'] != null ? const OutlineInputBorder(borderSide: BorderSide(color: AppTheme.rose, width: 2)) : null,
+                  ),
                 ),
                 const SizedBox(height: 24),
 

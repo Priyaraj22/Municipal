@@ -11,7 +11,7 @@ function validateSurveyPayload(data) {
   if (!data.street) errors.push('street is required');
   if (!data.head)   errors.push('head (family head name) is required');
 
-  if (!data.members || !data.members.length) {
+  if (data.status !== 'Hold' && (!data.members || !data.members.length)) {
     errors.push('At least one family member is required');
   }
   return errors;

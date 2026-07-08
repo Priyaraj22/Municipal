@@ -10,7 +10,6 @@ async function getSurveys(req, res, next) {
     if (req.user && req.user.role === 'citizen') {
       filters.id = req.user.surveyId;
     } else if (req.user && req.user.role === 'surveyor' && !req.query.collector && !req.query.ward) {
-        // Default view for surveyor: their own wards
         filters.wards = req.user.wards;
         filters.collector = req.user.name;
     } else {
@@ -32,13 +31,24 @@ async function getSurveyById(req, res, next) {
 async function createSurvey(req, res, next) {
   try {
     const payload = { ...req.body };
+
+    // Robustly ensure collector and ward are never null
+    if (req.user) {
+      payload.collector = payload.collector || req.user.name || 'Unknown';
+      // Support both snake_case from app and camelCase for logic
+      payload.collectorWard = payload.collector_ward || payload.collectorWard || req.user.ward || 'All Wards';
+    } else {
+      payload.collector = payload.collector || 'Anonymous';
+      payload.collectorWard = payload.collector_ward || payload.collectorWard || 'All Wards';
+    }
+
     const survey = await submitSurvey(payload);
 
     const { sendWhatsApp } = require('../services/whatsappService');
-    if (payload.members && payload.members.length > 0) {
+    if (payload.members && payload.members.length > 0 && payload.status !== 'Hold') {
         const head = payload.members[0];
         if (head.mobile) {
-            const msg = `Rajapalayam Municipality\n\nYour family details (Head: ${head.name}) have been successfully registered.\n\nYou can now log in to the app using your mobile number ${head.mobile} and OTP to view details or register complaints.`;
+            const msg = `Rajapalayam Municipality\n\nYour family details have been successfully registered.\n\nYou can now log in using your mobile number ${head.mobile} to view details or register complaints.`;
             await sendWhatsApp(head.mobile, msg);
         }
     }
@@ -48,7 +58,11 @@ async function createSurvey(req, res, next) {
 
 async function updateSurvey(req, res, next) {
   try {
-    const survey = await modifySurvey(parseInt(req.params.id), req.body);
+    const payload = { ...req.body };
+    // Ensure ward info is preserved on update too
+    payload.collectorWard = payload.collector_ward || payload.collectorWard;
+
+    const survey = await modifySurvey(parseInt(req.params.id), payload);
     res.json(survey);
   } catch (err) { next(err); }
 }

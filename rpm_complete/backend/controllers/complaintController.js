@@ -4,10 +4,10 @@ const { sendWhatsApp } = require('../services/whatsappService');
 
 async function registerComplaint(req, res, next) {
     try {
-        const { survey_id, citizen_mobile, issue_type, description, street } = req.body;
+        const { survey_id, citizen_mobile, issue_type, description, street, evidence_photos } = req.body;
         const { rows } = await pool.query(
-            "INSERT INTO complaints (survey_id, citizen_mobile, issue_type, description, street) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-            [survey_id, citizen_mobile, issue_type, description, street]
+            "INSERT INTO complaints (survey_id, citizen_mobile, issue_type, description, street, evidence_photos) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+            [survey_id, citizen_mobile, issue_type, description, street, evidence_photos || []]
         );
         res.status(201).json(rows[0]);
     } catch (err) { next(err); }
@@ -79,6 +79,17 @@ async function getSurveyorCorrections(req, res, next) {
     } catch (err) { next(err); }
 }
 
+async function getMyCorrections(req, res, next) {
+    try {
+        const { survey_id } = req.query;
+        const { rows } = await pool.query(
+            "SELECT * FROM correction_requests WHERE survey_id = $1 ORDER BY id DESC",
+            [survey_id]
+        );
+        res.json(rows);
+    } catch (err) { next(err); }
+}
+
 async function approveCorrection(req, res, next) {
     const client = await pool.connect();
     try {
@@ -116,4 +127,4 @@ async function approveCorrection(req, res, next) {
     } finally { client.release(); }
 }
 
-module.exports = { registerComplaint, getMyComplaints, updateComplaintStatus, submitFeedback, requestCorrection, getSurveyorCorrections, approveCorrection };
+module.exports = { registerComplaint, getMyComplaints, updateComplaintStatus, submitFeedback, requestCorrection, getSurveyorCorrections, getMyCorrections, approveCorrection };

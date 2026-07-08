@@ -21,6 +21,7 @@ function rowToSurvey(row, members = [], couples = []) {
     housing:         row.housing || '',
     water:           row.water || '',
     toilet:          row.toilet || '',
+    status:          row.status || 'Submitted',
     collector:       row.collector,
     collectorWard:   row.collector_ward,
     date:            row.survey_date,
@@ -118,9 +119,9 @@ async function getAllSurveys(filters = {}) {
     params.push(filters.ward);
     conditions.push(`s.ward = $${params.length}`);
   }
-  if (filters.wards && filters.wards.length) {
-    params.push(filters.wards);
-    conditions.push(`s.ward = ANY($${params.length})`);
+  if (filters.status) {
+    params.push(filters.status);
+    conditions.push(`s.status = $${params.length}`);
   }
   if (filters.collector) {
     params.push('%' + filters.collector.trim() + '%');
@@ -156,12 +157,10 @@ async function updateSurvey(id, data) {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        // 1. Update main survey
         await client.query(
-            `UPDATE surveys SET head=$1, door=$2, street=$3, ration=$4, abha=$5, pmja=$6, phr=$7, smartcard=$8, bpl=$9, caste=$10, housing=$11, water=$12, toilet=$13, updated_at=NOW() WHERE id=$14`,
-            [data.head, data.door, data.street, data.ration, data.abha, data.pmja, data.phr, data.smartcard, data.bpl, data.caste, data.housing, data.water, data.toilet, id]
+            `UPDATE surveys SET head=$1, door=$2, street=$3, ration=$4, abha=$5, pmja=$6, phr=$7, smartcard=$8, bpl=$9, caste=$10, housing=$11, water=$12, toilet=$13, status=$14, updated_at=NOW() WHERE id=$15`,
+            [data.head, data.door, data.street, data.ration, data.abha, data.pmja, data.phr, data.smartcard, data.bpl, data.caste, data.housing, data.water, data.toilet, data.status, id]
         );
-        // 2. Clear and Re-insert members (cleanest way for updates)
         await client.query('DELETE FROM family_members WHERE survey_id = $1', [id]);
         for (const m of (data.members || [])) {
             await client.query(
@@ -183,9 +182,9 @@ async function createSurvey(data) {
     await client.query('BEGIN');
     const today = new Date().toLocaleDateString('en-IN');
     const { rows } = await client.query(
-      `INSERT INTO surveys (ward, door, street, famno, head, ration, abha, pmja, phr, smartcard, bpl, caste, insurance, housing, water, toilet, collector, collector_ward, survey_date)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
-      [data.ward, data.door, data.street, data.famno || '', data.head, data.ration || '', data.abha || '', data.pmja || '', data.phr || '', data.smartcard || '', data.bpl || '', data.caste || '', data.insurance || '', data.housing || '', data.water || '', data.toilet || '', data.collector, data.collectorWard, data.date || today]
+      `INSERT INTO surveys (ward, door, street, famno, head, ration, abha, pmja, phr, smartcard, bpl, caste, insurance, housing, water, toilet, status, collector, collector_ward, survey_date)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *`,
+      [data.ward, data.door, data.street, data.famno || '', data.head, data.ration || '', data.abha || '', data.pmja || '', data.phr || '', data.smartcard || '', data.bpl || '', data.caste || '', data.insurance || '', data.housing || '', data.water || '', data.toilet || '', data.status || 'Submitted', data.collector, data.collectorWard, data.date || today]
     );
     const survey = rows[0];
     for (const m of (data.members || [])) {

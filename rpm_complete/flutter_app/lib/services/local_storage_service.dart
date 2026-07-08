@@ -158,6 +158,163 @@ class LocalStorageService {
     final surveys = allSurveys.where((s) => s.status == 'Submitted').toList();
 
     final builder = XmlBuilder();
+<<<<<<< HEAD
+    builder.processing('xml', 'version="1.0" encoding="UTF-8"');
+    builder.element('RajapalayamSurveyData', nest: () {
+      builder.element('ExportMetadata', nest: () {
+        builder.element('ExportTimestamp', nest: DateTime.now().toIso8601String());
+        builder.element('TotalSurveys', nest: surveys.length.toString());
+      });
+
+      builder.element('Surveys', nest: () {
+        for (var s in surveys) {
+          builder.element('Survey', nest: () {
+            // Location & Identity
+            builder.element('SurveyID', nest: s.surveyId ?? s.id);
+            builder.element('Ward', nest: s.ward);
+            builder.element('DoorNo', nest: s.door);
+            builder.element('Street', nest: s.street);
+            builder.element('FamilyRegisterNo', nest: s.famno);
+            builder.element('FamilyHead', nest: s.head);
+            builder.element('Phone', nest: s.phone);
+
+            // Govt IDs
+            builder.element('GovtIDs', nest: () {
+              builder.element('RationCard', nest: s.ration);
+              builder.element('ABHA', nest: s.abha);
+              builder.element('PMJA', nest: s.pmja);
+              builder.element('PHR', nest: s.phr);
+              builder.element('SmartCard', nest: s.smartcard);
+            });
+
+            // Household Details
+            builder.element('HouseholdDetails', nest: () {
+              builder.element('BPL_APL', nest: s.bpl);
+              builder.element('Caste', nest: s.caste);
+              builder.element('HealthInsurance', nest: s.insurance);
+              builder.element('HousingType', nest: s.housing);
+              builder.element('WaterSource', nest: s.water);
+              builder.element('ToiletFacility', nest: s.toilet);
+            });
+
+            // Collection Metadata
+            builder.element('Metadata', nest: () {
+              builder.element('Collector', nest: s.collector ?? '');
+              builder.element('CollectorWard', nest: s.collectorWard ?? '');
+              builder.element('SurveyDate', nest: s.date ?? '');
+              builder.element('Status', nest: s.status);
+            });
+
+            // Family Members
+            builder.element('FamilyMembers', nest: () {
+              for (var m in s.members) {
+                builder.element('Member', nest: () {
+                  builder.element('MemberNo', nest: m.memno);
+                  builder.element('Name', nest: m.name);
+                  builder.element('Relationship', nest: m.rel);
+                  builder.element('DOB', nest: m.dob);
+                  builder.element('Age', nest: m.age);
+                  builder.element('Gender', nest: m.gender);
+                  builder.element('Aadhaar', nest: m.aadhar);
+                  builder.element('Mobile', nest: m.mobile);
+                  builder.element('BloodGroup', nest: m.blood);
+                  builder.element('MaritalStatus', nest: m.marital);
+                  builder.element('Education', nest: m.edu);
+                  builder.element('Occupation', nest: m.occ);
+                  builder.element('Income', nest: m.income);
+                  builder.element('Religion', nest: m.religion);
+
+                  if (m.newMemDate.isNotEmpty) {
+                    builder.element('AdditionDetails', nest: () {
+                      builder.element('Date', nest: m.newMemDate);
+                      builder.element('Reason', nest: m.newMemReason);
+                    });
+                  }
+
+                  builder.element('HealthDetails', nest: () {
+                    builder.element('Disability', nest: m.disability);
+                    builder.element('HasChronicDisease', nest: m.hasChronicDisease);
+                    builder.element('ChronicNCD', nest: m.chronicNCD);
+                    builder.element('ChronicCD', nest: m.chronicCD);
+                    builder.element('TreatmentPlace', nest: m.treatmentPlace);
+                    builder.element('Vaccination', nest: m.vaccination);
+                  });
+
+                  builder.element('WelfareSchemes', nest: m.schemes);
+
+                  if (m.deathDate.isNotEmpty) {
+                    builder.element('DeathDetails', nest: () {
+                      builder.element('DeathDate', nest: m.deathDate);
+                      builder.element('DeathReason', nest: m.deathReason);
+                    });
+                  }
+
+                  builder.element('Remarks', nest: m.remarks);
+                });
+              }
+            });
+
+            // Eligible Couples
+            builder.element('EligibleCouples', nest: () {
+              for (var c in s.couples) {
+                builder.element('Couple', nest: () {
+                  builder.element('FRNo', nest: c.frno);
+                  builder.element('ECNo', nest: c.ecno);
+                  builder.element('RCHID', nest: c.rchid);
+                  builder.element('HusbandName', nest: c.husbandName);
+                  builder.element('WifeName', nest: c.wifeName);
+                  builder.element('RegDate', nest: c.regDate);
+
+                  builder.element('BankInfo', nest: () {
+                    builder.element('AccountNo', nest: c.bankAc);
+                    builder.element('Branch', nest: c.bankBranch);
+                  });
+
+                  builder.element('MarriageInfo', nest: () {
+                    builder.element('HusbandAgeAtMarriage', nest: c.husbandAgeAtMarriage);
+                    builder.element('WifeAgeAtMarriage', nest: c.wifeAgeAtMarriage);
+                    builder.element('MotherCurrentAge', nest: c.motherCurrentAge);
+                  });
+
+                  builder.element('PregnancyHistory', nest: () {
+                    builder.element('TotalPregnancies', nest: c.totalPregnancies);
+                    builder.element('LivingSons', nest: c.livingSons);
+                    builder.element('LivingDaughters', nest: c.livingDaughters);
+                    builder.element('Abortions', nest: c.abortions);
+                    builder.element('YoungestChildDOB', nest: c.youngestChildDOB);
+                  });
+
+                  builder.element('LastDelivery', nest: () {
+                    builder.element('Date', nest: c.lastDeliveryDate);
+                    builder.element('Place', nest: c.lastDeliveryPlace);
+                    builder.element('Type', nest: c.deliveryType);
+                    builder.element('PostHealth', nest: c.postDeliveryHealth);
+                    builder.element('ChildBornThisYear', nest: c.childBornThisYear);
+                  });
+
+                  builder.element('FamilyPlanning', nest: () {
+                    builder.element('Method', nest: c.contraceptiveMethod);
+                    builder.element('StoppingOrSpacing', nest: c.stoppingOrSpacing);
+                    builder.element('ReasonNoContra', nest: c.noContraReason);
+                    builder.element('SterilisationDate', nest: c.sterilisationDate);
+                    builder.element('SterilisationPlace', nest: c.sterilisationPlace);
+                  });
+
+                  builder.element('AntenatalCare', nest: () {
+                    builder.element('PregnancyTest', nest: c.pregnancyTest);
+                    builder.element('ANNumber', nest: c.anNumber);
+                    builder.element('ANCDone', nest: c.ancDone);
+                    builder.element('ANCDate', nest: c.ancDate);
+                    builder.element('NextVisit', nest: c.nextVisit);
+                    builder.element('PlannedDeliveryPlace', nest: c.plannedDeliveryPlace);
+                  });
+
+                  builder.element('CurrentHealth', nest: c.currentHealthStatus);
+                  builder.element('Remarks', nest: c.remarks);
+                });
+              }
+            });
+=======
     builder.processing('xml', 'version="1.0"');
     builder.element('Surveys', nest: () {
       for (var s in surveys) {
@@ -178,9 +335,10 @@ class LocalStorageService {
                 builder.element('Relation', nest: m.rel);
               });
             }
+>>>>>>> 124b45c28335ed4d83f226ed8b1097e3b3dab0f8
           });
-        });
-      }
+        }
+      });
     });
 
     final directory = await _getExportDirectory();
