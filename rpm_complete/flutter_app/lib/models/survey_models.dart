@@ -411,13 +411,11 @@ class DashboardData {
 class AuthState {
   final bool isLoggedIn;
   final String? collectorName;
-  final String? collectorWard;
   final String? token;
 
   const AuthState({
     this.isLoggedIn = false,
     this.collectorName,
-    this.collectorWard,
     this.token,
   });
 }

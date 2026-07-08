@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_provider.dart';
-import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 import 'home_screen.dart';
@@ -16,54 +15,40 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _collectorNameCtrl = TextEditingController();
-  String? _selectedWard;
-  List<String> _wardNames = [];
-  bool _loadingWards = true;
+  final _usernameCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
   bool _isLoading = false;
+  bool _obscure = true;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadWards();
-  }
+  Future<void> _handleLogin() async {
+    final user = _usernameCtrl.text.trim();
+    final pass = _passwordCtrl.text.trim();
 
-  Future<void> _loadWards() async {
-    try {
-      final wards = await ApiService.getWards();
-      setState(() {
-        _wardNames = wards.map((w) => w.wardName).toList();
-        _loadingWards = false;
-      });
-    } catch (e) {
-      setState(() {
-        _wardNames = List.generate(42, (i) => 'Ward ${i + 1}');
-        _loadingWards = false;
-      });
-    }
-  }
-
-  Future<void> _loginCollector() async {
-    final name = _collectorNameCtrl.text.trim();
-    if (name.isEmpty) {
-      showToast(context, 'Please enter your name', isError: true);
-      return;
-    }
-    if (_selectedWard == null) {
-      showToast(context, 'Please select your ward', isError: true);
+    if (user.isEmpty || pass.isEmpty) {
+      showToast(context, 'Please enter both username and password', isError: true);
       return;
     }
 
     setState(() => _isLoading = true);
-    await context.read<AuthProvider>().loginCollectorLocal(name, _selectedWard!);
+    final success = await context.read<AuthProvider>().loginSurveyor(user, pass);
+    
     if (mounted) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
+      setState(() => _isLoading = false);
+      if (success) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      } else {
+        showToast(context, 'Invalid credentials. Contact Admin.', isError: true);
+      }
     }
   }
 
   @override
   void dispose() {
-    _collectorNameCtrl.dispose();
+    _usernameCtrl.dispose();
+    _passwordCtrl.dispose();
     super.dispose();
   }
 
@@ -76,27 +61,62 @@ class _LoginScreenState extends State<LoginScreen> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: const BoxConstraints(maxWidth: 400),
               child: Column(
                 children: [
                   _HeaderSection(),
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    padding: const EdgeInsets.all(24),
                     decoration: const BoxDecoration(
                       color: AppTheme.white,
                       borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
                       boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, 8))],
                     ),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          child: Text(
-                            '📋 Surveyor Login',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.blue),
+                        const Text(
+                          '📋 Surveyor Login',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.blue),
+                        ),
+                        const SizedBox(height: 24),
+                        TextField(
+                          controller: _usernameCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Your Name / உங்கள் பெயர் *',
+                            prefixIcon: Icon(Icons.person_outline),
                           ),
                         ),
-                        _buildSurveyorTab(),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _passwordCtrl,
+                          obscureText: _obscure,
+                          decoration: InputDecoration(
+                            labelText: 'Fixed Password',
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
+                              onPressed: () => setState(() => _obscure = !_obscure),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        ElevatedButton(
+                          onPressed: _isLoading ? null : _handleLogin,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: _isLoading 
+                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text('Login to Start'),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Enter your name and your assigned password.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 11, color: AppTheme.ink3),
+                        ),
                       ],
                     ),
                   ),
@@ -108,37 +128,6 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
-  Widget _buildSurveyorTab() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(
-            controller: _collectorNameCtrl,
-            decoration: const InputDecoration(labelText: 'Your Name / உங்கள் பெயர் *'),
-          ),
-          const SizedBox(height: 14),
-          _loadingWards
-              ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-              : DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  value: _selectedWard,
-                  hint: const Text('— Select Ward —'),
-                  decoration: const InputDecoration(labelText: 'Select Assigned Ward *'),
-                  items: _wardNames.map((w) => DropdownMenuItem(value: w, child: Text(w, style: const TextStyle(fontSize: 12)))).toList(),
-                  onChanged: (v) => setState(() => _selectedWard = v),
-                ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: _isLoading ? null : _loginCollector,
-            child: const Text('Start Local Collection'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _HeaderSection extends StatelessWidget {
@@ -147,13 +136,18 @@ class _HeaderSection extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 32),
-      decoration: const BoxDecoration(color: AppTheme.blue, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      decoration: const BoxDecoration(
+        color: AppTheme.blue,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       child: Column(
         children: [
           const Text('🏛', style: TextStyle(fontSize: 40)),
           const SizedBox(height: 12),
-          const Text('Rajapalayam Municipality', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-          const Text('Local Family Survey', style: TextStyle(color: Colors.white70, fontSize: 12)),
+          const Text('Rajapalayam Municipality', 
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text('Family Survey System', 
+              style: TextStyle(color: Colors.white70, fontSize: 12)),
         ],
       ),
     );

@@ -3,8 +3,10 @@
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/survey_models.dart';
+import '../services/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/validation_service.dart';
 import '../services/local_storage_service.dart';
@@ -213,6 +215,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
     }
 
     setState(() => _submitting = true);
+    final auth = context.read<AuthProvider>();
     final survey = Survey(
       ward: _ward ?? '',
       street: _streetCtrl.text.trim(),
@@ -232,6 +235,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
       water: _water ?? '',
       toilet: _toilet ?? '',
       status: hold ? 'Hold' : 'Submitted',
+      collector: auth.collectorName,
       members: _members,
       couples: _couples,
     );
