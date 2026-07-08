@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/validation_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 
@@ -22,14 +23,29 @@ class CorrectionFormScreen extends StatefulWidget {
 class _CorrectionFormScreenState extends State<CorrectionFormScreen> {
   final _newValCtrl = TextEditingController();
   bool _submitting = false;
+  String? _error;
+
+  void _validate() {
+    setState(() {
+      if (_newValCtrl.text.trim().isEmpty) {
+        _error = 'New value is required';
+      } else {
+        _error = null;
+      }
+    });
+  }
 
   @override
   void initState() {
     super.initState();
     _newValCtrl.text = widget.currentVal;
+    _newValCtrl.addListener(_validate);
   }
 
   Future<void> _submit() async {
+    _validate();
+    if (_error != null) return;
+
     if (_newValCtrl.text.trim() == widget.currentVal) {
       showToast(context, 'No changes made', isError: true);
       return;
@@ -70,7 +86,12 @@ class _CorrectionFormScreenState extends State<CorrectionFormScreen> {
             FieldLabel(text: 'Corrected Value / புதிய விவரம் *'),
             TextField(
               controller: _newValCtrl,
-              decoration: const InputDecoration(hintText: 'Enter the correct details...'),
+              decoration: InputDecoration(
+                hintText: 'Enter the correct details...',
+                errorText: _error,
+                enabledBorder: _error != null ? const OutlineInputBorder(borderSide: BorderSide(color: AppTheme.rose, width: 1)) : null,
+                focusedBorder: _error != null ? const OutlineInputBorder(borderSide: BorderSide(color: AppTheme.rose, width: 2)) : null,
+              ),
             ),
             const SizedBox(height: 32),
             ElevatedButton(

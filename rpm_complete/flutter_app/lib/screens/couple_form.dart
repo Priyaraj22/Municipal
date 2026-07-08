@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import '../models/survey_models.dart';
+import '../services/validation_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 
@@ -63,6 +64,26 @@ class _CoupleFormScreenState extends State<CoupleFormScreen> {
   String? _noContraReason;
   String? _ancDone;
 
+  final Map<String, String?> _errors = {};
+
+  void _validateField(String field, String value) {
+    setState(() {
+      switch (field) {
+        case 'frno': _errors['frno'] = ValidationService.validateAlphanumeric(value); break;
+        case 'ecno': _errors['ecno'] = ValidationService.validateAlphanumeric(value); break;
+        case 'rchid': _errors['rchid'] = ValidationService.validateAlphanumeric(value); break;
+        case 'anNo': _errors['anNo'] = ValidationService.validateAlphanumeric(value); break;
+        case 'husbandName': _errors['husbandName'] = ValidationService.validateCollector(value); break;
+        case 'wifeName': _errors['wifeName'] = ValidationService.validateCollector(value); break;
+        case 'bankAc': _errors['bankAc'] = ValidationService.validateBankAc(value); break;
+        case 'husbandAge': _errors['husbandAge'] = ValidationService.validateHusbandAgeMarriage(value); break;
+        case 'wifeAge': _errors['wifeAge'] = ValidationService.validateWifeAgeMarriage(value); break;
+        case 'motherAge': _errors['motherAge'] = ValidationService.validateMotherCurrentAge(value); break;
+        case 'remarks': _errors['remarks'] = ValidationService.validateRemarks(value); break;
+      }
+    });
+  }
+
   static const _yesNo     = ['Yes', 'No'];
   static const _delTypes  = ['Normal', 'C-Section', 'Home Delivery', 'N/A'];
   static const _fpMethods = [
@@ -75,6 +96,19 @@ class _CoupleFormScreenState extends State<CoupleFormScreen> {
   @override
   void initState() {
     super.initState();
+
+    _frnoCtrl.addListener(() => _validateField('frno', _frnoCtrl.text));
+    _ecnoCtrl.addListener(() => _validateField('ecno', _ecnoCtrl.text));
+    _rchidCtrl.addListener(() => _validateField('rchid', _rchidCtrl.text));
+    _anNoCtrl.addListener(() => _validateField('anNo', _anNoCtrl.text));
+    _husbandNameCtrl.addListener(() => _validateField('husbandName', _husbandNameCtrl.text));
+    _wifeNameCtrl.addListener(() => _validateField('wifeName', _wifeNameCtrl.text));
+    _bankAcCtrl.addListener(() => _validateField('bankAc', _bankAcCtrl.text));
+    _husbandAgeMarCtrl.addListener(() => _validateField('husbandAge', _husbandAgeMarCtrl.text));
+    _wifeAgeMarCtrl.addListener(() => _validateField('wifeAge', _wifeAgeMarCtrl.text));
+    _motherAgeCtrl.addListener(() => _validateField('motherAge', _motherAgeCtrl.text));
+    _remarksCtrl.addListener(() => _validateField('remarks', _remarksCtrl.text));
+
     if (widget.existing != null) {
       final c = widget.existing!;
       _frnoCtrl.text          = c.frno;
@@ -130,6 +164,18 @@ class _CoupleFormScreenState extends State<CoupleFormScreen> {
   }
 
   void _save() {
+    _validateField('husbandName', _husbandNameCtrl.text);
+    _validateField('wifeName', _wifeNameCtrl.text);
+    _validateField('bankAc', _bankAcCtrl.text);
+    _validateField('husbandAge', _husbandAgeMarCtrl.text);
+    _validateField('wifeAge', _wifeAgeMarCtrl.text);
+    _validateField('motherAge', _motherAgeCtrl.text);
+
+    if (_errors.values.any((e) => e != null)) {
+      showToast(context, 'Please fix the errors before saving', isError: true);
+      return;
+    }
+
     if (_husbandNameCtrl.text.trim().isEmpty && _wifeNameCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Husband or Wife name is required'),
@@ -194,26 +240,26 @@ class _CoupleFormScreenState extends State<CoupleFormScreen> {
           children: [
             // ── Section 1: Identification ──────────────────────────────────
             _sec('🪪 Identification / அடையாளம்'),
-            _txt('FR No.', _frnoCtrl, 'Family register number'),
-            _txt('EC No.', _ecnoCtrl, 'Eligible couple number'),
-            _txt('RCH ID', _rchidCtrl, 'RCH ID (wife)'),
+            _txt('FR No.', _frnoCtrl, 'Family register number', errorText: _errors['frno']),
+            _txt('EC No.', _ecnoCtrl, 'Eligible couple number', errorText: _errors['ecno']),
+            _txt('RCH ID', _rchidCtrl, 'RCH ID (wife)', errorText: _errors['rchid']),
 
             // ── Section 2: Couple Details ──────────────────────────────────
             _sec('💑 Couple Details / தம்பதியர் விவரம்'),
-            _txt('Husband Name / கணவர் பெயர்', _husbandNameCtrl, 'Full name'),
-            _txt('Wife Name / மனைவி பெயர்', _wifeNameCtrl, 'Full name'),
+            _txt('Husband Name / கணவர் பெயர்', _husbandNameCtrl, 'Full name', errorText: _errors['husbandName']),
+            _txt('Wife Name / மனைவி பெயர்', _wifeNameCtrl, 'Full name', errorText: _errors['wifeName']),
             _date('Registration Date', _regDateCtrl),
 
             // ── Section 3: Bank Details ────────────────────────────────────
             _sec('🏦 Bank Details / வங்கி விவரம்'),
-            _txt('Bank Account No.', _bankAcCtrl, 'Account number'),
+            _txt('Bank Account No.', _bankAcCtrl, 'Account number', errorText: _errors['bankAc']),
             _txt('Bank Branch', _bankBranchCtrl, 'Branch name'),
 
             // ── Section 4: Marriage & Pregnancies ─────────────────────────
             _sec('👶 Marriage & Children / திருமணம் & குழந்தைகள்'),
-            _num('Husband Age at Marriage', _husbandAgeMarCtrl),
-            _num('Wife Age at Marriage', _wifeAgeMarCtrl),
-            _num("Mother's Current Age", _motherAgeCtrl),
+            _num('Husband Age at Marriage', _husbandAgeMarCtrl, errorText: _errors['husbandAge']),
+            _num('Wife Age at Marriage', _wifeAgeMarCtrl, errorText: _errors['wifeAge']),
+            _num("Mother's Current Age", _motherAgeCtrl, errorText: _errors['motherAge']),
             _num('Total Pregnancies', _totalPregCtrl),
             _num('Living Sons', _livingSonsCtrl),
             _num('Living Daughters', _livingDaughCtrl),
@@ -244,7 +290,7 @@ class _CoupleFormScreenState extends State<CoupleFormScreen> {
             // ── Section 7: ANC / Antenatal ─────────────────────────────────
             _sec('🤰 Antenatal Care (ANC)'),
             _txt('Pregnancy Test Result', _pregnTestCtrl, 'Positive / Negative / N/A'),
-            _txt('AN Number', _anNoCtrl, 'Antenatal number'),
+            _txt('AN Number', _anNoCtrl, 'Antenatal number', errorText: _errors['anNo']),
             _chip('ANC Done?', _yesNo, _ancDone,
                 (v) => setState(() => _ancDone = v)),
             _date('ANC Date', _ancDateCtrl),
@@ -254,7 +300,7 @@ class _CoupleFormScreenState extends State<CoupleFormScreen> {
 
             // ── Section 8: Remarks ────────────────────────────────────────
             _sec('📝 Remarks'),
-            _txt('Remarks / குறிப்புகள்', _remarksCtrl, 'Additional notes'),
+            _txt('Remarks / குறிப்புகள்', _remarksCtrl, 'Additional notes', errorText: _errors['remarks']),
 
             const SizedBox(height: 24),
             ElevatedButton(
@@ -275,47 +321,81 @@ class _CoupleFormScreenState extends State<CoupleFormScreen> {
         fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.teal)),
   );
 
-  Widget _txt(String label, TextEditingController ctrl, String hint) => Padding(
+  Widget _txt(String label, TextEditingController ctrl, String hint, {String? errorText}) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       FieldLabel(text: label),
-      TextField(controller: ctrl, decoration: InputDecoration(hintText: hint)),
+      TextField(
+        controller: ctrl,
+        decoration: InputDecoration(
+          hintText: hint,
+          errorText: errorText,
+          enabledBorder: errorText != null ? const OutlineInputBorder(borderSide: BorderSide(color: AppTheme.rose, width: 1)) : null,
+          focusedBorder: errorText != null ? const OutlineInputBorder(borderSide: BorderSide(color: AppTheme.rose, width: 2)) : null,
+        ),
+      ),
     ]),
   );
 
-  Widget _num(String label, TextEditingController ctrl) => Padding(
+  Widget _num(String label, TextEditingController ctrl, {String? errorText}) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       FieldLabel(text: label),
-      TextField(controller: ctrl,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(hintText: 'Number')),
+      TextField(
+        controller: ctrl,
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(
+          hintText: 'Number',
+          errorText: errorText,
+          enabledBorder: errorText != null ? const OutlineInputBorder(borderSide: BorderSide(color: AppTheme.rose, width: 1)) : null,
+          focusedBorder: errorText != null ? const OutlineInputBorder(borderSide: BorderSide(color: AppTheme.rose, width: 2)) : null,
+        ),
+      ),
     ]),
   );
 
-  Widget _date(String label, TextEditingController ctrl) => Padding(
+  Widget _date(String label, TextEditingController ctrl, {String? errorText}) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       FieldLabel(text: label),
       TextField(
         controller: ctrl,
         readOnly: true,
-        onTap: () async {
-          final d = await showDatePicker(
-            context: context,
-            initialDate: DateTime.now(),
-            firstDate: DateTime(1950),
-            lastDate: DateTime(2100),
-          );
-          if (d != null) ctrl.text = d.toIso8601String().split('T')[0];
-        },
-        decoration: const InputDecoration(
+        onTap: () => _pickDate(ctrl),
+        decoration: InputDecoration(
           hintText: 'YYYY-MM-DD',
-          suffixIcon: Icon(Icons.calendar_today, size: 18),
+          errorText: errorText,
+          enabledBorder: errorText != null ? const OutlineInputBorder(borderSide: BorderSide(color: AppTheme.rose, width: 1)) : null,
+          focusedBorder: errorText != null ? const OutlineInputBorder(borderSide: BorderSide(color: AppTheme.rose, width: 2)) : null,
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (ctrl.text.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () => setState(() => ctrl.clear()),
+                ),
+              IconButton(
+                icon: const Icon(Icons.calendar_today, size: 18),
+                onPressed: () => _pickDate(ctrl),
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
         ),
       ),
     ]),
   );
+
+  Future<void> _pickDate(TextEditingController ctrl) async {
+    final d = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(1950),
+      lastDate: DateTime(2100),
+    );
+    if (d != null) setState(() => ctrl.text = d.toIso8601String().split('T')[0]);
+  }
 
   Widget _chip(String label, List<String> opts, String? value, ValueChanged<String?> onChanged) =>
     Padding(
