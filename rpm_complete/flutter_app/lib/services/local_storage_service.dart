@@ -79,13 +79,26 @@ class LocalStorageService {
 
   static Future<void> saveSurvey(Survey survey) async {
     final surveys = await getAllSurveys();
-    if (survey.id == null) {
-       survey.id = DateTime.now().millisecondsSinceEpoch.toString();
-    }
-    final index = surveys.indexWhere((s) => s.id == survey.id);
-    if (index != -1) surveys[index] = survey;
-    else surveys.add(survey);
     
+    if (survey.id == null) {
+      // Find the highest numeric ID and increment it
+      int maxId = 0;
+      for (var s in surveys) {
+        final sid = int.tryParse(s.id ?? '0') ?? 0;
+        if (sid > maxId) maxId = sid;
+      }
+      survey.id = (maxId + 1).toString();
+      surveys.add(survey);
+    } else {
+      // Overwrite existing record
+      final index = surveys.indexWhere((s) => s.id == survey.id);
+      if (index != -1) {
+        surveys[index] = survey;
+      } else {
+        surveys.add(survey);
+      }
+    }
+
     final file = await _getFile();
     await file.writeAsString(json.encode(surveys.map((s) => s.toJson()).toList()));
   }
@@ -101,7 +114,9 @@ class LocalStorageService {
     final ok = await _requestPermission();
     if (!ok) throw Exception('Storage permission required to create folder');
 
-    final surveys = await getAllSurveys();
+    final allSurveys = await getAllSurveys();
+    final surveys = allSurveys.where((s) => s.status == 'Submitted').toList();
+    
     var excel = xl.Excel.createExcel();
     xl.Sheet sheetObject = excel['Surveys'];
 
@@ -139,7 +154,9 @@ class LocalStorageService {
     final ok = await _requestPermission();
     if (!ok) throw Exception('Storage permission required');
 
-    final surveys = await getAllSurveys();
+    final allSurveys = await getAllSurveys();
+    final surveys = allSurveys.where((s) => s.status == 'Submitted').toList();
+
     final builder = XmlBuilder();
     builder.processing('xml', 'version="1.0"');
     builder.element('Surveys', nest: () {
@@ -152,6 +169,7 @@ class LocalStorageService {
           builder.element('Address', nest: '${s.door}, ${s.street}');
           builder.element('Status', nest: s.status);
           builder.element('Surveyor', nest: s.collector);
+          builder.element('Date', nest: s.date);
           builder.element('Members', nest: () {
             for (var m in s.members) {
               builder.element('Member', nest: () {
@@ -176,7 +194,9 @@ class LocalStorageService {
     final ok = await _requestPermission();
     if (!ok) throw Exception('Storage permission required');
 
-    final surveys = await getAllSurveys();
+    final allSurveys = await getAllSurveys();
+    final surveys = allSurveys.where((s) => s.status == 'Submitted').toList();
+
     final directory = await _getExportDirectory();
     final filePath = '${directory.path}/Survey_${DateTime.now().millisecondsSinceEpoch}.json';
     final content = json.encode(surveys.map((s) => s.toJson()).toList());

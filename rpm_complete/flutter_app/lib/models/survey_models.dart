@@ -352,6 +352,7 @@ class Survey {
       );
 
   Map<String, dynamic> toJson() => {
+        'id': id,
         'ward': ward, 'door': door, 'street': street, 'famno': famno,
         'head': head, 'ration': ration, 'abha': abha, 'pmja': pmja,
         'phr': phr, 'smartcard': smartcard,
@@ -360,6 +361,7 @@ class Survey {
         'housing': housing, 'water': water, 'toilet': toilet,
         'status': status,
         'collector': collector, 'collectorWard': collectorWard,
+        'date': date,
         'members': members.map((m) => m.toJson()).toList(),
         'couples': couples.map((c) => c.toJson()).toList(),
       };

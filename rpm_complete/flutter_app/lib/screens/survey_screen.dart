@@ -216,6 +216,9 @@ class _SurveyScreenState extends State<SurveyScreen> {
 
     setState(() => _submitting = true);
     final auth = context.read<AuthProvider>();
+    final now = DateTime.now();
+    final dateStr = "${now.day}-${now.month}-${now.year}";
+
     final survey = Survey(
       ward: _ward ?? '',
       street: _streetCtrl.text.trim(),
@@ -236,6 +239,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
       toilet: _toilet ?? '',
       status: hold ? 'Hold' : 'Submitted',
       collector: auth.collectorName,
+      date: dateStr,
       members: _members,
       couples: _couples,
     );
