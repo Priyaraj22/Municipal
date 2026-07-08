@@ -264,7 +264,7 @@ class EligibleCouple {
 
 // ── Survey ─────────────────────────────────────────────────────────────────────
 class Survey {
-  final String? id;
+  String? id;
   final String? surveyId;
   String ward;
   String door;
@@ -276,6 +276,7 @@ class Survey {
   String pmja;
   String phr;
   String smartcard;
+  String phone;
   String bpl;
   String caste;
   String insurance;
@@ -302,6 +303,7 @@ class Survey {
     this.pmja = '',
     this.phr = '',
     this.smartcard = '',
+    this.phone = '',
     this.bpl = '',
     this.caste = '',
     this.insurance = '',
@@ -330,6 +332,7 @@ class Survey {
         pmja:          j['pmja'] ?? '',
         phr:           j['phr'] ?? '',
         smartcard:     j['smartcard'] ?? '',
+        phone:         j['phone'] ?? '',
         bpl:           j['bpl'] ?? '',
         caste:         j['caste'] ?? '',
         insurance:     j['insurance'] ?? '',
@@ -352,6 +355,7 @@ class Survey {
         'ward': ward, 'door': door, 'street': street, 'famno': famno,
         'head': head, 'ration': ration, 'abha': abha, 'pmja': pmja,
         'phr': phr, 'smartcard': smartcard,
+        'phone': phone,
         'bpl': bpl, 'caste': caste, 'insurance': insurance,
         'housing': housing, 'water': water, 'toilet': toilet,
         'status': status,
@@ -406,22 +410,14 @@ class DashboardData {
 // ── Auth State ─────────────────────────────────────────────────────────────────
 class AuthState {
   final bool isLoggedIn;
-  final bool isAdmin;
-  final bool isCitizen;
   final String? collectorName;
   final String? collectorWard;
-  final String? citizenPhone;
-  final String? surveyId;
   final String? token;
 
   const AuthState({
     this.isLoggedIn = false,
-    this.isAdmin = false,
-    this.isCitizen = false,
     this.collectorName,
     this.collectorWard,
-    this.citizenPhone,
-    this.surveyId,
     this.token,
   });
 }
@@ -438,6 +434,7 @@ class Complaint {
   final String? createdAt;
   final String? feedback;
   final int? rating;
+  final List<String> evidencePhotos;
 
   Complaint({
     this.id,
@@ -450,6 +447,7 @@ class Complaint {
     this.createdAt,
     this.feedback,
     this.rating,
+    this.evidencePhotos = const [],
   });
 
   factory Complaint.fromJson(Map<String, dynamic> j) => Complaint(
@@ -463,6 +461,7 @@ class Complaint {
         createdAt:     j['created_at'],
         feedback:      j['citizen_feedback'],
         rating:        j['citizen_rating'],
+        evidencePhotos: (j['evidence_photos'] as List? ?? []).cast<String>(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -471,6 +470,7 @@ class Complaint {
         'issue_type':     issueType,
         'description':    description,
         'street':         street,
+        'evidence_photos': evidencePhotos,
       };
 }
 
@@ -523,5 +523,3 @@ class CorrectionRequest {
         'new_value':  newValue,
       };
 }
-
-

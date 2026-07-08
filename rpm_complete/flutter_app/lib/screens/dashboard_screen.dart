@@ -1,10 +1,10 @@
 // screens/dashboard_screen.dart
-// Admin dashboard with stats and charts (matching the web dashboard)
+// Admin dashboard with stats calculated from local storage
 
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../models/survey_models.dart';
-import '../services/api_service.dart';
+import '../services/local_storage_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 
@@ -16,8 +16,13 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  DashboardData? _data;
   bool _loading = true;
+  int _families = 0;
+  int _members = 0;
+  int _wards = 0;
+  Map<String, int> _bplCounts = {};
+  Map<String, int> _casteCounts = {};
+  Map<String, int> _genderCounts = {};
 
   @override
   void initState() {
@@ -28,11 +33,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final data = await ApiService.getDashboard();
-      setState(() { _data = data; _loading = false; });
+      final data = await LocalStorageService.getAllSurveys();
+      
+      int mCount = 0;
+      Set<String> wardSet = {};
+      Map<String, int> bpl = {};
+      Map<String, int> caste = {};
+      Map<String, int> gender = {};
+
+      for (var s in data) {
+        mCount += s.members.length;
+        wardSet.add(s.ward);
+        bpl[s.bpl] = (bpl[s.bpl] ?? 0) + 1;
+        caste[s.caste] = (caste[s.caste] ?? 0) + 1;
+        for (var m in s.members) {
+          gender[m.gender] = (gender[m.gender] ?? 0) + 1;
+        }
+      }
+
+      setState(() {
+        _families = data.length;
+        _members = mCount;
+        _wards = wardSet.length;
+        _bplCounts = bpl;
+        _casteCounts = caste;
+        _genderCounts = gender;
+        _loading = false;
+      });
     } catch (e) {
       setState(() => _loading = false);
-      if (mounted) showToast(context, e.toString(), isError: true);
     }
   }
 
@@ -41,20 +70,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (_loading) {
       return const Center(child: CircularProgressIndicator(color: AppTheme.teal));
     }
-    if (_data == null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Failed to load dashboard'),
-            const SizedBox(height: 12),
-            ElevatedButton(onPressed: _load, child: const Text('Retry')),
-          ],
-        ),
-      );
-    }
-
-    final d = _data!;
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -65,7 +80,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Stats ──
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
@@ -74,44 +88,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
               mainAxisSpacing: 10,
               childAspectRatio: 1.8,
               children: [
-                StatCard(emoji: '🏠', value: '${d.families}', label: 'Families / குடும்பங்கள்', color: AppTheme.teal),
-                StatCard(emoji: '👥', value: '${d.members}', label: 'Members / உறுப்பினர்கள்', color: AppTheme.blue),
-                StatCard(emoji: '🗺️', value: '${d.activeWards}', label: 'Active Wards', color: AppTheme.purple),
-                StatCard(emoji: '📅', value: '${d.today}', label: 'Today / இன்று', color: AppTheme.amber),
+                StatCard(emoji: '🏠', value: '$_families', label: 'Families', color: AppTheme.teal),
+                StatCard(emoji: '👥', value: '$_members', label: 'Members', color: AppTheme.blue),
+                StatCard(emoji: '🗺️', value: '$_wards', label: 'Active Wards', color: AppTheme.purple),
+                StatCard(emoji: '📊', value: '${_bplCounts['BPL'] ?? 0}', label: 'BPL Families', color: AppTheme.amber),
               ],
             ),
-
             const SizedBox(height: 20),
-
-            // ── BPL vs APL ──
-            if (d.bplCounts.isNotEmpty) ...[
+            if (_bplCounts.isNotEmpty) ...[
               _ChartCard(
-                title: '📊 BPL vs APL விநியோகம்',
+                title: 'BPL vs APL',
                 child: SizedBox(
                   height: 200,
                   child: PieChart(
                     PieChartData(
-                      sections: _buildPieSections(d.bplCounts, [AppTheme.amber, AppTheme.teal, AppTheme.ink3]),
+                      sections: _buildPieSections(_bplCounts, [AppTheme.amber, AppTheme.teal, AppTheme.ink3]),
                       sectionsSpace: 2,
                       centerSpaceRadius: 40,
                     ),
                   ),
                 ),
-                legend: d.bplCounts,
+                legend: _bplCounts,
                 colors: [AppTheme.amber, AppTheme.teal, AppTheme.ink3],
               ),
               const SizedBox(height: 12),
             ],
-
-            // ── Caste Distribution ──
-            if (d.casteCounts.isNotEmpty) ...[
+            if (_casteCounts.isNotEmpty) ...[
               _ChartCard(
-                title: '🏘️ சாதி / Caste Category',
+                title: 'Caste Distribution',
                 child: SizedBox(
                   height: 200,
                   child: BarChart(
                     BarChartData(
-                      barGroups: _buildBarGroups(d.casteCounts),
+                      barGroups: _buildBarGroups(_casteCounts),
                       gridData: const FlGridData(show: false),
                       borderData: FlBorderData(show: false),
                       titlesData: FlTitlesData(
@@ -119,66 +128,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           sideTitles: SideTitles(
                             showTitles: true,
                             getTitlesWidget: (v, meta) {
-                              final keys = d.casteCounts.keys.toList();
+                              final keys = _casteCounts.keys.toList();
                               if (v.toInt() < keys.length) {
-                                return Text(keys[v.toInt()],
-                                    style: const TextStyle(fontSize: 11, color: AppTheme.ink2));
+                                return Text(keys[v.toInt()], style: const TextStyle(fontSize: 11));
                               }
                               return const Text('');
                             },
                           ),
                         ),
-                        leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                       ),
                     ),
                   ),
                 ),
-                legend: d.casteCounts,
-                colors: [AppTheme.teal, AppTheme.blue, AppTheme.purple, AppTheme.amber, AppTheme.rose],
+                legend: _casteCounts,
+                colors: [AppTheme.teal, AppTheme.blue, AppTheme.purple, AppTheme.amber],
               ),
-              const SizedBox(height: 12),
-            ],
-
-            // ── Gender ──
-            if (d.genderCounts.isNotEmpty) ...[
-              _ChartCard(
-                title: '👥 பாலின விநியோகம் / Gender',
-                child: SizedBox(
-                  height: 200,
-                  child: PieChart(
-                    PieChartData(
-                      sections: _buildPieSections(d.genderCounts, [AppTheme.blue, AppTheme.rose, AppTheme.ink3]),
-                      sectionsSpace: 2,
-                      centerSpaceRadius: 40,
-                    ),
-                  ),
-                ),
-                legend: d.genderCounts,
-                colors: [AppTheme.blue, AppTheme.rose, AppTheme.ink3],
-              ),
-              const SizedBox(height: 12),
-            ],
-
-            // ── Insurance ──
-            if (d.insuranceCounts.isNotEmpty) ...[
-              _ChartCard(
-                title: '🏥 காப்பீடு / Insurance Coverage',
-                child: SizedBox(
-                  height: 200,
-                  child: PieChart(
-                    PieChartData(
-                      sections: _buildPieSections(d.insuranceCounts, [AppTheme.teal, AppTheme.rose, AppTheme.ink3]),
-                      sectionsSpace: 2,
-                      centerSpaceRadius: 40,
-                    ),
-                  ),
-                ),
-                legend: d.insuranceCounts,
-                colors: [AppTheme.teal, AppTheme.rose, AppTheme.ink3],
-              ),
-              const SizedBox(height: 24),
             ],
           ],
         ),
@@ -196,7 +160,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         value: val.toDouble(),
         color: colors[i % colors.length],
         title: '${pct.toStringAsFixed(1)}%',
-        titleStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
+        titleStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
         radius: 60,
       );
     });
@@ -204,7 +168,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   List<BarChartGroupData> _buildBarGroups(Map<String, int> data) {
     final keys = data.keys.toList();
-    final colors = [AppTheme.teal, AppTheme.blue, AppTheme.purple, AppTheme.amber, AppTheme.rose];
+    final colors = [AppTheme.teal, AppTheme.blue, AppTheme.purple, AppTheme.amber];
     return List.generate(keys.length, (i) => BarChartGroupData(
       x: i,
       barRods: [
@@ -225,12 +189,7 @@ class _ChartCard extends StatelessWidget {
   final Map<String, int> legend;
   final List<Color> colors;
 
-  const _ChartCard({
-    required this.title,
-    required this.child,
-    required this.legend,
-    required this.colors,
-  });
+  const _ChartCard({required this.title, required this.child, required this.legend, required this.colors});
 
   @override
   Widget build(BuildContext context) {
@@ -240,8 +199,7 @@ class _ChartCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.ink)),
+            Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             child,
             const SizedBox(height: 12),
@@ -249,21 +207,12 @@ class _ChartCard extends StatelessWidget {
               spacing: 12,
               runSpacing: 6,
               children: legend.keys.toList().asMap().entries.map((e) {
-                final i = e.key;
-                final key = e.value;
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 10, height: 10,
-                      decoration: BoxDecoration(
-                        color: colors[i % colors.length],
-                        shape: BoxShape.circle,
-                      ),
-                    ),
+                    Container(width: 10, height: 10, decoration: BoxDecoration(color: colors[e.key % colors.length], shape: BoxShape.circle)),
                     const SizedBox(width: 4),
-                    Text('$key: ${legend[key]}',
-                        style: const TextStyle(fontSize: 11, color: AppTheme.ink2)),
+                    Text('${e.value}: ${legend[e.value]}', style: const TextStyle(fontSize: 11)),
                   ],
                 );
               }).toList(),

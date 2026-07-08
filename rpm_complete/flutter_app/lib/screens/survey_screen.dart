@@ -1,14 +1,13 @@
 // screens/survey_screen.dart
-// 4-step family survey form matching the web app
+// 4-step family survey form - Directly accessible local mode
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/survey_models.dart';
-import '../services/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/validation_service.dart';
+import '../services/local_storage_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 import 'member_form.dart';
@@ -39,6 +38,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
   final _rationCtrl = TextEditingController();
   final _smartcardCtrl = TextEditingController();
   final _headCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
   String? _bpl;
   String? _caste;
   String? _insurance;
@@ -58,11 +58,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
     _loadWards();
     _checkDraft();
     
-    // Auto-save listeners for text fields
-    final ctrls = [
-      _streetCtrl, _doorCtrl, _famnoCtrl, _abhaCtrl, _pmjaCtrl,
-      _phrCtrl, _rationCtrl, _smartcardCtrl, _headCtrl
-    ];
+    final ctrls = [_streetCtrl, _doorCtrl, _famnoCtrl, _abhaCtrl, _pmjaCtrl, _phrCtrl, _rationCtrl, _smartcardCtrl, _headCtrl, _phoneCtrl];
     for (var c in ctrls) {
       c.addListener(_saveDraft);
     }
@@ -79,6 +75,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
       _rationCtrl.text = s.ration;
       _smartcardCtrl.text = s.smartcard;
       _headCtrl.text = s.head;
+      _phoneCtrl.text = s.phone;
       _bpl = s.bpl.isEmpty ? null : s.bpl;
       _caste = s.caste.isEmpty ? null : s.caste;
       _insurance = s.insurance.isEmpty ? null : s.insurance;
@@ -92,11 +89,8 @@ class _SurveyScreenState extends State<SurveyScreen> {
 
   Future<void> _checkDraft() async {
     if (widget.existing != null) return;
-    final auth = context.read<AuthProvider>();
-    if (auth.collectorName == null) return;
-
     final prefs = await SharedPreferences.getInstance();
-    final draft = prefs.getString('draft_${auth.collectorName}');
+    final draft = prefs.getString('local_survey_draft');
     if (draft != null) {
       setState(() => _draftExists = true);
     }
@@ -104,10 +98,6 @@ class _SurveyScreenState extends State<SurveyScreen> {
 
   Future<void> _saveDraft() async {
     if (widget.existing != null) return;
-    final auth = context.read<AuthProvider>();
-    if (auth.collectorName == null) return;
-
-    final prefs = await SharedPreferences.getInstance();
     final survey = Survey(
       ward: _ward ?? '',
       street: _streetCtrl.text.trim(),
@@ -119,24 +109,23 @@ class _SurveyScreenState extends State<SurveyScreen> {
       ration: _rationCtrl.text.trim(),
       smartcard: _smartcardCtrl.text.trim(),
       head: _headCtrl.text.trim(),
+      phone: _phoneCtrl.text.trim(),
       bpl: _bpl ?? '',
       caste: _caste ?? '',
       insurance: _insurance ?? '',
       housing: _housing ?? '',
       water: _water ?? '',
       toilet: _toilet ?? '',
-      collector: auth.collectorName?.trim(),
-      collectorWard: auth.collectorWard?.trim(),
       members: _members,
       couples: _couples,
     );
-    await prefs.setString('draft_${auth.collectorName}', json.encode(survey.toJson()));
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('local_survey_draft', json.encode(survey.toJson()));
   }
 
   Future<void> _restoreDraft() async {
-    final auth = context.read<AuthProvider>();
     final prefs = await SharedPreferences.getInstance();
-    final draft = prefs.getString('draft_${auth.collectorName}');
+    final draft = prefs.getString('local_survey_draft');
     if (draft != null) {
       final s = Survey.fromJson(json.decode(draft));
       setState(() {
@@ -150,38 +139,33 @@ class _SurveyScreenState extends State<SurveyScreen> {
         _rationCtrl.text = s.ration;
         _smartcardCtrl.text = s.smartcard;
         _headCtrl.text = s.head;
+        _phoneCtrl.text = s.phone;
         _bpl = s.bpl.isEmpty ? null : s.bpl;
         _caste = s.caste.isEmpty ? null : s.caste;
         _insurance = s.insurance.isEmpty ? null : s.insurance;
         _housing = s.housing.isEmpty ? null : s.housing;
         _water = s.water.isEmpty ? null : s.water;
         _toilet = s.toilet.isEmpty ? null : s.toilet;
-        _members.clear();
-        _members.addAll(s.members);
-        _couples.clear();
-        _couples.addAll(s.couples);
+        _members.clear(); _members.addAll(s.members);
+        _couples.clear(); _couples.addAll(s.couples);
         _draftExists = false;
       });
-      showToast(context, 'Draft restored / வரைவு மீட்கப்பட்டது');
+      showToast(context, 'Draft restored');
     }
   }
 
   Future<void> _discardDraft() async {
-    final auth = context.read<AuthProvider>();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('draft_${auth.collectorName}');
+    await prefs.remove('local_survey_draft');
     setState(() => _draftExists = false);
-    showToast(context, 'Draft discarded / வரைவு நீக்கப்பட்டது');
+    showToast(context, 'Draft discarded');
   }
 
   Future<void> _loadWards() async {
     try {
       final wards = await ApiService.getWards();
-      final auth = context.read<AuthProvider>();
       setState(() {
         _wardNames = wards.map((w) => w.wardName).toList();
-        // Pre-select collector's ward
-        if (auth.collectorWard != null) _ward = auth.collectorWard;
       });
     } catch (_) {
       setState(() {
@@ -192,11 +176,11 @@ class _SurveyScreenState extends State<SurveyScreen> {
 
   void _clearForm() {
     setState(() {
-      _step = 0;
-      _ward = context.read<AuthProvider>().collectorWard;
+      _step = 0; _ward = null;
       _streetCtrl.clear(); _doorCtrl.clear(); _famnoCtrl.clear();
       _abhaCtrl.clear(); _pmjaCtrl.clear(); _phrCtrl.clear();
       _rationCtrl.clear(); _smartcardCtrl.clear(); _headCtrl.clear();
+      _phoneCtrl.clear();
       _bpl = null; _caste = null; _insurance = null;
       _housing = null; _water = null; _toilet = null;
       _members.clear(); _couples.clear();
@@ -204,22 +188,11 @@ class _SurveyScreenState extends State<SurveyScreen> {
   }
 
   bool _validateStep0() {
-    if (_ward == null || _ward!.isEmpty) {
-      showToast(context, 'Ward No. is required / வார்டு எண் தேவை', isError: true);
-      return false;
-    }
-    if (_streetCtrl.text.trim().isEmpty) {
-      showToast(context, 'Street name is required / தெரு பெயர் தேவை', isError: true);
-      return false;
-    }
-    if (_doorCtrl.text.trim().isEmpty) {
-      showToast(context, 'Door No. is required / கதவு எண் தேவை', isError: true);
-      return false;
-    }
-    if (_headCtrl.text.trim().isEmpty) {
-      showToast(context, 'Family Head name is required / குடும்பத்தலைவர் பெயர் தேவை', isError: true);
-      return false;
-    }
+    if (_ward == null || _ward!.isEmpty) { showToast(context, 'Ward No. is required', isError: true); return false; }
+    if (_streetCtrl.text.trim().isEmpty) { showToast(context, 'Street name is required', isError: true); return false; }
+    if (_doorCtrl.text.trim().isEmpty) { showToast(context, 'Door No. is required', isError: true); return false; }
+    if (_headCtrl.text.trim().isEmpty) { showToast(context, 'Family Head name is required', isError: true); return false; }
+    if (_phoneCtrl.text.trim().isEmpty) { showToast(context, 'Phone Number is required', isError: true); return false; }
     return true;
   }
 
@@ -240,8 +213,6 @@ class _SurveyScreenState extends State<SurveyScreen> {
     }
 
     setState(() => _submitting = true);
-
-    final auth = context.read<AuthProvider>();
     final survey = Survey(
       ward: _ward ?? '',
       street: _streetCtrl.text.trim(),
@@ -253,6 +224,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
       ration: _rationCtrl.text.trim(),
       smartcard: _smartcardCtrl.text.trim(),
       head: _headCtrl.text.trim(),
+      phone: _phoneCtrl.text.trim(),
       bpl: _bpl ?? '',
       caste: _caste ?? '',
       insurance: _insurance ?? '',
@@ -260,53 +232,20 @@ class _SurveyScreenState extends State<SurveyScreen> {
       water: _water ?? '',
       toilet: _toilet ?? '',
       status: hold ? 'Hold' : 'Submitted',
-      collector: auth.collectorName?.trim(),
-      collectorWard: auth.collectorWard?.trim(),
       members: _members,
       couples: _couples,
     );
 
-    // AI Smart Validation (Skip full validation if just holding)
-    if (!hold) {
-      final validation = ValidationService.validate(survey);
-      if (!validation.isValid) {
-        setState(() => _submitting = false);
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('❌ Validation Errors', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: validation.errors.map((e) => Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Text(e, style: const TextStyle(fontSize: 13)),
-              )).toList(),
-            ),
-            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fix Issues'))],
-          ),
-        );
-        return;
-      }
-    }
-
     try {
       if (widget.existing != null && widget.existing!.id != null) {
-        await ApiService.updateSurvey(widget.existing!.id!, survey);
-        if (mounted) {
-          showToast(context, hold ? '📥 Survey put on hold!' : '✅ Survey updated successfully!');
-          Navigator.pop(context, true);
-        }
+        survey.id = widget.existing!.id;
+        await LocalStorageService.saveSurvey(survey);
+        if (mounted) { showToast(context, hold ? '📥 Draft saved!' : '✅ Survey updated!'); Navigator.pop(context, true); }
       } else {
-        await ApiService.createSurvey(survey);
-        final auth = context.read<AuthProvider>();
+        await LocalStorageService.saveSurvey(survey);
         final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('draft_${auth.collectorName}');
-        if (mounted) {
-          showToast(context, hold ? '📥 Survey put on hold!' : '✅ Survey submitted successfully!');
-          _clearForm();
-          if (Navigator.canPop(context)) Navigator.pop(context, true);
-        }
+        await prefs.remove('local_survey_draft');
+        if (mounted) { showToast(context, hold ? '📥 Draft saved!' : '✅ Survey saved!'); _clearForm(); }
       }
     } catch (e) {
       if (mounted) showToast(context, e.toString(), isError: true);
@@ -321,91 +260,27 @@ class _SurveyScreenState extends State<SurveyScreen> {
       children: [
         Column(
           children: [
-            // ── Collector Banner ──
-            _CollectorBanner(),
-
-            if (_draftExists)
-              _DraftBanner(onRestore: _restoreDraft, onDiscard: _discardDraft),
-
-            // ── Step Indicator ──
+            if (_draftExists) _DraftBanner(onRestore: _restoreDraft, onDiscard: _discardDraft),
             StepIndicator(
               currentStep: _step,
               totalSteps: 4,
               labels: const ['🏠 Family', '👥 Members', '💑 Couples', '✅ Review'],
-              onTap: (i) {
-                if (i > _step && _step == 0 && !_validateStep0()) return;
-                setState(() => _step = i);
-              },
+              onTap: (i) { if (i > _step && _step == 0 && !_validateStep0()) return; setState(() => _step = i); },
             ),
-
-            // ── Page Content ──
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
-                child: [
-                  _Step0Family(this),
-                  _Step1Members(this),
-                  _Step2Couples(this),
-                  _Step3Review(this),
-                ][_step],
+                child: [ _Step0Family(this), _Step1Members(this), _Step2Couples(this), _Step3Review(this) ][_step],
               ),
             ),
           ],
         ),
-        if (_submitting) const LoadingOverlay(message: 'Submitting survey…'),
+        if (_submitting) const LoadingOverlay(message: 'Saving locally...'),
       ],
     );
 
-    // If we have an existing survey, we are in "Edit Mode" as a separate screen
-    if (widget.existing != null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Edit Survey / திருத்து'),
-        ),
-        body: content,
-      );
-    }
-
+    if (widget.existing != null) { return Scaffold(appBar: AppBar(title: const Text('Edit Local Survey')), body: content); }
     return content;
-  }
-}
-
-// ── Collector Banner ──
-class _CollectorBanner extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEBF2FF),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFD0E1FF)),
-      ),
-      child: Row(
-        children: [
-          const Text('🪪', style: TextStyle(fontSize: 20)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${auth.collectorName ?? 'Surveyor'} — ${auth.collectorWard ?? ''}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 13, color: AppTheme.blue),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const Text('பதிவு செய்யும் ஊழியர் விவரம்',
-                    style: TextStyle(fontSize: 11, color: AppTheme.ink3)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -418,16 +293,13 @@ class _Step0Family extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Location Details
         SectionCard(
           icon: const SectionIcon(emoji: '📍', color: Color(0xFFEBF2FF)),
-          title: 'இடம் விவரங்கள் / Location Details',
-          subtitle: 'Ward No., Street, Door, IDs',
+          title: 'Location Details', subtitle: 'Ward No., Street, Door, IDs',
           body: Column(
             children: [
-              _DropField('Ward No. *', s._wardNames, s._ward,
-                  (v) => s.setState(() { s._ward = v; s._saveDraft(); }), hint: '— Select —'),
-              _TxtField('Street Name *', s._streetCtrl, 'தெரு பெயர் / Street name'),
+              _DropField('Ward No. *', s._wardNames, s._ward, (v) => s.setState(() { s._ward = v; s._saveDraft(); }), hint: '— Select —'),
+              _TxtField('Street Name *', s._streetCtrl, 'Street name'),
               _TxtField('Door No. *', s._doorCtrl, 'e.g. 12A'),
               const SizedBox(height: 12),
               _TxtField('Family Register No.', s._famnoCtrl, 'FR number'),
@@ -439,58 +311,34 @@ class _Step0Family extends StatelessWidget {
             ],
           ),
         ),
-
-        // Family Head
         SectionCard(
           icon: const SectionIcon(emoji: '👤', color: Color(0xFFEFF6FF)),
-          title: 'குடும்பத் தலைவர் / Family Head & Category',
-          subtitle: 'Head name, BPL/APL, Caste, Insurance',
+          title: 'Family Head', subtitle: 'Head name, BPL/APL, Community',
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _TxtField('Family Head Name *', s._headCtrl, 'குடும்பத்தலைவர் பெயர்'),
+              _TxtField('Family Head Name *', s._headCtrl, 'Name'),
+              _TxtField('Phone Number *', s._phoneCtrl, 'Mobile number', keyboardType: TextInputType.phone),
               const SizedBox(height: 12),
-              _ChipRow('BPL / APL நிலை *', ['BPL', 'APL', 'Unknown'],
-                  s._bpl, (v) => s.setState(() { s._bpl = v; s._saveDraft(); })),
+              _ChipRow('BPL / APL Status *', ['BPL', 'APL', 'Unknown'], s._bpl, (v) => s.setState(() { s._bpl = v; s._saveDraft(); })),
               const SizedBox(height: 12),
-              _ChipRow('சாதி / Caste *', ['SC', 'ST', 'MBC', 'BC', 'OC'],
-                  s._caste, (v) => s.setState(() { s._caste = v; s._saveDraft(); })),
+              _ChipRow('Caste *', ['SC', 'ST', 'MBC', 'BC', 'OC'], s._caste, (v) => s.setState(() { s._caste = v; s._saveDraft(); })),
               const SizedBox(height: 12),
-              _ChipRow('Health Insurance', ['Yes', 'No', 'Unknown'],
-                  s._insurance, (v) => s.setState(() { s._insurance = v; s._saveDraft(); })),
+              _ChipRow('Health Insurance', ['Yes', 'No', 'Unknown'], s._insurance, (v) => s.setState(() { s._insurance = v; s._saveDraft(); })),
             ],
           ),
         ),
-
-        // Housing
         SectionCard(
           icon: const SectionIcon(emoji: '🏗️', color: Color(0xFFFAF5FF)),
-          title: 'வசதிகள் / Housing & Amenities',
-          subtitle: 'வீட்டு வகை, குடிநீர், கழிவறை',
+          title: 'Housing & Amenities', subtitle: 'வீட்டு வகை, குடிநீர், கழிவறை',
           body: Column(
             children: [
-              _DropField(
-                  'வீட்டு வகை / Type of House',
-                  ['Pucca / கான்கிரீட் வீடு', 'Semi-Pucca / அரை கான்கிரீட்',
-                    'Kutcha / குடிசை', 'Own House / சொந்த வீடு',
-                    'Rental / வாடகை வீடு', 'Government Quarters / அரசு குடியிருப்பு', 'Others / மற்றவை'],
-                  s._housing, (v) => s.setState(() { s._housing = v; s._saveDraft(); })),
-              _DropField(
-                  'குடிநீர் ஆதாரம் / Water Source',
-                  ['Municipal Tap / குழாய் நீர்', 'Borewell / ஆழ்துளை கிணறு',
-                    'Open Well / திறந்த கிணறு', 'Tanker / தண்ணீர் லாரி',
-                    'River / ஆறு', 'Rainwater / மழைநீர் சேகரிப்பு', 'Others / மற்றவை'],
-                  s._water, (v) => s.setState(() { s._water = v; s._saveDraft(); })),
-              _DropField(
-                  'கழிவறை வசதி / Toilet Facility',
-                  ['Own Toilet / தனி கழிவறை', 'Shared Toilet / பொது கழிவறை',
-                    'Community Toilet / சமுதாயக் கழிவறை', 'Open Defecation / திறந்தவெளி',
-                    'None / கழிவறை இல்லை'],
-                  s._toilet, (v) => s.setState(() { s._toilet = v; s._saveDraft(); })),
+              _DropField('வீட்டு வகை / Type of House', ['Pucca / கான்கிரீட் வீடு', 'Semi-Pucca / அரை கான்கிரீட்', 'Kutcha / குடிசை', 'Own House / சொந்த வீடு', 'Rental / வாடகை வீடு', 'Government Quarters / அரசு குடியிருப்பு', 'Others / மற்றவை'], s._housing, (v) => s.setState(() { s._housing = v; s._saveDraft(); })),
+              _DropField('குடிநீர் ஆதாரம் / Water Source', ['Municipal Tap / குழாய் நீர்', 'Borewell / ஆழ்துளை கிணறு', 'Open Well / திறந்த கிணறு', 'Tanker / தண்ணீர் லாரி', 'River / ஆறு', 'Rainwater / மழைநீர் சேகரிப்பு', 'Others / மற்றவை'], s._water, (v) => s.setState(() { s._water = v; s._saveDraft(); })),
+              _DropField('கழிவறை வசதி / Toilet Facility', ['Own Toilet / தனி கழிவறை', 'Shared Toilet / பொது கழிவறை', 'Community Toilet / சமுதாயக் கழிவறை', 'Open Defecation / திறந்தவெளி', 'None / கழிவறை இல்லை'], s._toilet, (v) => s.setState(() { s._toilet = v; s._saveDraft(); })),
             ],
           ),
         ),
-
         const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.only(bottom: 24),
@@ -500,25 +348,15 @@ class _Step0Family extends StatelessWidget {
               Expanded(
                 child: TextButton.icon(
                   onPressed: s._submitting ? null : () {
-                    if (s._streetCtrl.text.isEmpty || s._doorCtrl.text.isEmpty || s._headCtrl.text.isEmpty) {
-                      showToast(context, 'Fill Head Name, Door No & Street to Hold', isError: true);
-                      return;
-                    }
+                    if (s._streetCtrl.text.isEmpty || s._doorCtrl.text.isEmpty || s._headCtrl.text.isEmpty || s._phoneCtrl.text.isEmpty) { showToast(context, 'Fill Head Name, Phone, Door No & Street to Save', isError: true); return; }
                     s._submitSurvey(hold: true);
                   },
                   icon: const Icon(Icons.save_outlined, size: 18, color: Colors.orange),
-                  label: const Text('Save Draft / சேமி',
-                      style: TextStyle(color: Colors.orange, fontSize: 11),
-                      overflow: TextOverflow.ellipsis),
+                  label: const Text('Save Draft', style: TextStyle(color: Colors.orange, fontSize: 11), overflow: TextOverflow.ellipsis),
                 ),
               ),
               const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: () {
-                  if (s._validateStep0()) s.setState(() => s._step = 1);
-                },
-                child: const Text('Next / அடுத்து →', style: TextStyle(fontSize: 13)),
-              ),
+              ElevatedButton(onPressed: () { if (s._validateStep0()) s.setState(() => s._step = 1); }, child: const Text('Next →', style: TextStyle(fontSize: 13))),
             ],
           ),
         ),
@@ -531,75 +369,28 @@ class _Step0Family extends StatelessWidget {
 class _Step1Members extends StatelessWidget {
   final _SurveyScreenState s;
   const _Step1Members(this.s);
-
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        ...s._members.asMap().entries.map((entry) {
-          final i = entry.key;
-          final m = entry.value;
-          return MemberCard(
-            index: i,
-            member: m,
-            onDelete: () => s.setState(() { s._members.removeAt(i); s._saveDraft(); }),
-            onEdit: () => _openMemberForm(context, i, m),
-          );
-        }),
-        OutlinedButton.icon(
-          onPressed: () => _openMemberForm(context, null, null),
-          icon: const Icon(Icons.add),
-          label: const Text('Add Family Member / உறுப்பினர் சேர்க்க'),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
-            side: const BorderSide(color: AppTheme.teal),
-            foregroundColor: AppTheme.teal,
-          ),
-        ),
+        ...s._members.asMap().entries.map((entry) => MemberCard(index: entry.key, member: entry.value, onDelete: () => s.setState(() { s._members.removeAt(entry.key); s._saveDraft(); }), onEdit: () => _openMemberForm(context, entry.key, entry.value))),
+        OutlinedButton.icon(onPressed: () => _openMemberForm(context, null, null), icon: const Icon(Icons.add), label: const Text('Add Family Member'), style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48), side: const BorderSide(color: AppTheme.teal), foregroundColor: AppTheme.teal)),
         const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            OutlinedButton(
-              onPressed: () => s.setState(() => s._step = 0),
-              child: const Text('← Back'),
-            ),
+            OutlinedButton(onPressed: () => s.setState(() => s._step = 0), child: const Text('← Back')),
             const SizedBox(width: 8),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () => s.setState(() => s._step = 2),
-                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12)),
-                child: const Text('Next: Couples / அடுத்து →', 
-                    style: TextStyle(fontSize: 12), 
-                    textAlign: TextAlign.center,
-                    maxLines: 1, 
-                    overflow: TextOverflow.ellipsis),
-              ),
-            ),
+            Expanded(child: ElevatedButton(onPressed: () => s.setState(() => s._step = 2), child: const Text('Next: Couples →', style: TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))),
           ],
         ),
         const SizedBox(height: 24),
       ],
     );
   }
-
   void _openMemberForm(BuildContext context, int? index, FamilyMember? existing) async {
-    final result = await Navigator.push<FamilyMember>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => MemberFormScreen(existing: existing),
-      ),
-    );
-    if (result != null) {
-      s.setState(() {
-        if (index != null) {
-          s._members[index] = result;
-        } else {
-          s._members.add(result);
-        }
-        s._saveDraft();
-      });
-    }
+    final result = await Navigator.push<FamilyMember>(context, MaterialPageRoute(builder: (_) => MemberFormScreen(existing: existing)));
+    if (result != null) { s.setState(() { if (index != null) s._members[index] = result; else s._members.add(result); s._saveDraft(); }); }
   }
 }
 
@@ -607,97 +398,28 @@ class _Step1Members extends StatelessWidget {
 class _Step2Couples extends StatelessWidget {
   final _SurveyScreenState s;
   const _Step2Couples(this.s);
-
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: const [
-                    SectionIcon(emoji: '💑', color: Color(0xFFFAF5FF)),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Eligible Couple Register',
-                              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                          Text('15–49 வயது தம்பதியர் விவரம் (optional)',
-                              style: TextStyle(fontSize: 12, color: AppTheme.ink3)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () => _openCoupleForm(context, null, null),
-                  icon: const Icon(Icons.add),
-                  label: const Text('தம்பதியர் சேர்க்க / Add Eligible Couple'),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppTheme.purple),
-                    foregroundColor: AppTheme.purple,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        ...s._couples.asMap().entries.map((entry) {
-          final i = entry.key;
-          final c = entry.value;
-          return CoupleCard(
-            index: i,
-            couple: c,
-            onDelete: () => s.setState(() { s._couples.removeAt(i); s._saveDraft(); }),
-            onEdit: () => _openCoupleForm(context, i, c),
-          );
-        }),
+        Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: const [SectionIcon(emoji: '💑', color: Color(0xFFFAF5FF)), SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Eligible Couple Register', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)), Text('15–49 years couples (optional)', style: TextStyle(fontSize: 12, color: AppTheme.ink3))]))]), const SizedBox(height: 12), OutlinedButton.icon(onPressed: () => _openCoupleForm(context, null, null), icon: const Icon(Icons.add), label: const Text('Add Eligible Couple'), style: OutlinedButton.styleFrom(side: const BorderSide(color: AppTheme.purple), foregroundColor: AppTheme.purple))] ))),
+        ...s._couples.asMap().entries.map((entry) => CoupleCard(index: entry.key, couple: entry.value, onDelete: () => s.setState(() { s._couples.removeAt(entry.key); s._saveDraft(); }), onEdit: () => _openCoupleForm(context, entry.key, entry.value))),
         const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            OutlinedButton(
-              onPressed: () => s.setState(() => s._step = 1),
-              child: const Text('← Back'),
-            ),
+            OutlinedButton(onPressed: () => s.setState(() => s._step = 1), child: const Text('← Back')),
             const SizedBox(width: 8),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () => s.setState(() => s._step = 3),
-                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12)),
-                child: const Text('Review / மதிப்பாய்வு →', 
-                    style: TextStyle(fontSize: 12), 
-                    textAlign: TextAlign.center,
-                    maxLines: 1, 
-                    overflow: TextOverflow.ellipsis),
-              ),
-            ),
+            Expanded(child: ElevatedButton(onPressed: () => s.setState(() => s._step = 3), child: const Text('Review & Finish →', style: TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))),
           ],
         ),
         const SizedBox(height: 24),
       ],
     );
   }
-
   void _openCoupleForm(BuildContext context, int? index, EligibleCouple? existing) async {
-    final result = await Navigator.push<EligibleCouple>(
-      context,
-      MaterialPageRoute(builder: (_) => CoupleFormScreen(existing: existing)),
-    );
-    if (result != null) {
-      s.setState(() {
-        if (index != null) s._couples[index] = result;
-        else s._couples.add(result);
-        s._saveDraft();
-      });
-    }
+    final result = await Navigator.push<EligibleCouple>(context, MaterialPageRoute(builder: (_) => CoupleFormScreen(existing: existing)));
+    if (result != null) { s.setState(() { if (index != null) s._couples[index] = result; else s._couples.add(result); s._saveDraft(); }); }
   }
 }
 
@@ -705,73 +427,23 @@ class _Step2Couples extends StatelessWidget {
 class _Step3Review extends StatelessWidget {
   final _SurveyScreenState s;
   const _Step3Review(this.s);
-
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-          const Row(children: [
-            Text('✅', style: TextStyle(fontSize: 22)),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text('Review Before Submission',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                  overflow: TextOverflow.ellipsis),
-            ),
-          ]),
-                const Divider(height: 24),
-                _ReviewRow('Ward', s._ward ?? '-'),
-                _ReviewRow('Door No.', s._doorCtrl.text),
-                _ReviewRow('Street', s._streetCtrl.text),
-                _ReviewRow('Family Head', s._headCtrl.text),
-                _ReviewRow('BPL/APL', s._bpl ?? '-'),
-                _ReviewRow('Caste', s._caste ?? '-'),
-                _ReviewRow('Insurance', s._insurance ?? '-'),
-                _ReviewRow('Housing', s._housing ?? '-'),
-                _ReviewRow('Water', s._water ?? '-'),
-                _ReviewRow('Toilet', s._toilet ?? '-'),
-                const Divider(height: 24),
-                _ReviewRow('Family Members', '${s._members.length}'),
-                _ReviewRow('Eligible Couples', '${s._couples.length}'),
-              ],
-            ),
-          ),
-        ),
+        Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Row(children: [Text('✅', style: TextStyle(fontSize: 22)), SizedBox(width: 10), Expanded(child: Text('Review Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)))] ), const Divider(height: 24), _ReviewRow('Ward', s._ward ?? '-'), _ReviewRow('Door No.', s._doorCtrl.text), _ReviewRow('Street', s._streetCtrl.text), _ReviewRow('Family Head', s._headCtrl.text), _ReviewRow('BPL/APL', s._bpl ?? '-'), _ReviewRow('Caste', s._caste ?? '-'), const Divider(height: 24), _ReviewRow('Family Members', '${s._members.length}'), _ReviewRow('Eligible Couples', '${s._couples.length}')] ))),
         const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            OutlinedButton(
-              onPressed: () => s.setState(() => s._step = 2),
-              child: const Text('← Back'),
-            ),
+            OutlinedButton(onPressed: () => s.setState(() => s._step = 2), child: const Text('← Back')),
             const SizedBox(width: 8),
             Expanded(
               child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.end,
+                spacing: 8, runSpacing: 8, alignment: WrapAlignment.end,
                 children: [
-                  TextButton.icon(
-                    onPressed: s._submitting ? null : () => s._submitSurvey(hold: true),
-                    icon: const Icon(Icons.save_outlined, size: 18, color: Colors.orange),
-                    label: const Text('Save Draft', style: TextStyle(color: Colors.orange, fontSize: 13)),
-                  ),
-                  ElevatedButton(
-                    onPressed: s._submitting ? null : () => s._submitSurvey(hold: false),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.blue,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    ),
-                    child: const Text('✅ Submit',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  ),
+                  TextButton.icon(onPressed: s._submitting ? null : () => s._submitSurvey(hold: true), icon: const Icon(Icons.save_outlined, size: 18, color: Colors.orange), label: const Text('Save Draft', style: TextStyle(color: Colors.orange, fontSize: 13))),
+                  ElevatedButton(onPressed: s._submitting ? null : () => s._submitSurvey(hold: false), style: ElevatedButton.styleFrom(backgroundColor: AppTheme.blue, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)), child: const Text('✅ Submit', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
                 ],
               ),
             ),
@@ -784,143 +456,29 @@ class _Step3Review extends StatelessWidget {
 }
 
 class _ReviewRow extends StatelessWidget {
-  final String label;
-  final String value;
+  final String label; final String value;
   const _ReviewRow(this.label, this.value);
-
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(label,
-                style: const TextStyle(fontSize: 12, color: AppTheme.ink3)),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 3,
-            child: Text(value.isEmpty ? '—' : value,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.blue)),
-          ),
-        ],
-      ),
-    );
+    return Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(flex: 2, child: Text(label, style: const TextStyle(fontSize: 12, color: AppTheme.ink3))), const SizedBox(width: 8), Expanded(flex: 3, child: Text(value.isEmpty ? '—' : value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.blue)))] ));
   }
 }
 
-// ── Draft Banner ──
 class _DraftBanner extends StatelessWidget {
-  final VoidCallback onRestore;
-  final VoidCallback onDiscard;
+  final VoidCallback onRestore; final VoidCallback onDiscard;
   const _DraftBanner({required this.onRestore, required this.onDiscard});
-
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF7ED),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFFFEDD5)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
-        ],
-      ),
-      child: Row(
-        children: [
-          const Text('📂', style: TextStyle(fontSize: 18)),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Unsaved draft found',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF9A3412))),
-                Text('Continue previous survey?',
-                    style: TextStyle(fontSize: 11, color: Color(0xFF9A3412))),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: onDiscard,
-            child: const Text('Discard', style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(width: 4),
-          ElevatedButton(
-            onPressed: onRestore,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF9A3412),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              minimumSize: Size.zero,
-            ),
-            child: const Text('Restore', style: TextStyle(fontSize: 12)),
-          ),
-        ],
-      ),
-    );
+    return Container(margin: const EdgeInsets.fromLTRB(16, 12, 16, 0), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), decoration: BoxDecoration(color: const Color(0xFFFFF7ED), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFFFEDD5)), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]), child: Row(children: [const Text('📂', style: TextStyle(fontSize: 18)), const SizedBox(width: 10), const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Unsaved draft found', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF9A3412))), Text('Continue previous survey?', style: TextStyle(fontSize: 11, color: Color(0xFF9A3412)))] )), TextButton(onPressed: onDiscard, child: const Text('Discard', style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold))), const SizedBox(width: 4), ElevatedButton(onPressed: onRestore, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF9A3412), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), minimumSize: Size.zero), child: const Text('Restore', style: TextStyle(fontSize: 12)))] ));
   }
 }
 
-// ── Helper field widgets ──
-Widget _TxtField(String label, TextEditingController ctrl, String hint,
-    {bool required = false}) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        FieldLabel(text: label, required: required),
-        TextField(
-          controller: ctrl,
-          decoration: InputDecoration(hintText: hint),
-        ),
-      ],
-    ),
-  );
+Widget _TxtField(String label, TextEditingController ctrl, String hint, {bool required = false, TextInputType? keyboardType}) {
+  return Padding(padding: const EdgeInsets.only(bottom: 10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [FieldLabel(text: label, required: required), TextField(controller: ctrl, keyboardType: keyboardType, decoration: InputDecoration(hintText: hint))]));
 }
-
-Widget _DropField(String label, List<String> opts, String? value,
-    ValueChanged<String?> onChanged, {String hint = 'தேர்வு செய்யவும்…'}) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        FieldLabel(text: label),
-        DropdownButtonFormField<String>(
-          isExpanded: true,
-          value: (value != null && opts.contains(value)) ? value : null,
-          hint: Text(hint, style: const TextStyle(fontSize: 12)),
-          decoration: const InputDecoration(),
-          items: opts
-              .map((o) => DropdownMenuItem(
-                  value: o,
-                  child: Text(o, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis)))
-              .toList(),
-          onChanged: (v) {
-            onChanged(v);
-          },
-        ),
-      ],
-    ),
-  );
+Widget _DropField(String label, List<String> opts, String? value, ValueChanged<String?> onChanged, {String hint = 'Select…'}) {
+  return Padding(padding: const EdgeInsets.only(bottom: 10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [FieldLabel(text: label), DropdownButtonFormField<String>(isExpanded: true, value: (value != null && opts.contains(value)) ? value : null, hint: Text(hint, style: const TextStyle(fontSize: 12)), decoration: const InputDecoration(), items: opts.map((o) => DropdownMenuItem(value: o, child: Text(o, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis))).toList(), onChanged: onChanged)]));
 }
-
-Widget _ChipRow(String label, List<String> opts, String? value,
-    ValueChanged<String?> onChanged) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      FieldLabel(text: label),
-      ChipGroup(options: opts, value: value, onChanged: (v) {
-        onChanged(v);
-      }),
-    ],
-  );
+Widget _ChipRow(String label, List<String> opts, String? value, ValueChanged<String?> onChanged) {
+  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [FieldLabel(text: label), ChipGroup(options: opts, value: value, onChanged: onChanged)]);
 }

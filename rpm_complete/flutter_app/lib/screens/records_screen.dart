@@ -1,15 +1,12 @@
 // screens/records_screen.dart
-// Surveyor's own submitted surveys
+// View locally saved surveys
 
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
-import 'package:http/http.dart' as http;
 import '../models/survey_models.dart';
-import '../services/api_service.dart';
-import '../services/auth_provider.dart';
+import '../services/local_storage_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 import 'survey_screen.dart';
@@ -37,10 +34,7 @@ class _RecordsScreenState extends State<RecordsScreen> {
     if (!mounted) return;
     setState(() => _loading = true);
     try {
-      final auth = context.read<AuthProvider>();
-      final surveys = await ApiService.getSurveys(
-        collector: auth.collectorName?.trim(),
-      );
+      final surveys = await LocalStorageService.getAllSurveys();
       if (!mounted) return;
       setState(() {
         _surveys = surveys;
@@ -67,30 +61,36 @@ class _RecordsScreenState extends State<RecordsScreen> {
     });
   }
 
-  Future<void> _exportExcel() async {
+  Future<void> _exportXL() async {
     try {
-      showToast(context, 'Preparing Excel export…');
-      final auth = context.read<AuthProvider>();
-      final url = await ApiService.getExportUrl(
-        collector: auth.collectorName,
-        ward: auth.collectorWard,
-      );
-
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final dir = await getExternalStorageDirectory() ?? await getApplicationDocumentsDirectory();
-        final file = File('${dir.path}/My_Records_${DateTime.now().millisecondsSinceEpoch}.xlsx');
-        await file.writeAsBytes(response.bodyBytes);
-
-        if (mounted) {
-          showToast(context, '✅ Excel downloaded successfully');
-          OpenFile.open(file.path);
-        }
-      } else {
-        throw Exception('Download failed (${response.statusCode})');
-      }
+      showToast(context, 'Generating Excel…');
+      final path = await LocalStorageService.exportToExcel();
+      showToast(context, '✅ Excel saved: $path');
+      OpenFile.open(path);
     } catch (e) {
-      if (mounted) showToast(context, 'Export failed: $e', isError: true);
+      showToast(context, 'Export failed: $e', isError: true);
+    }
+  }
+
+  Future<void> _exportXML() async {
+    try {
+      showToast(context, 'Generating XML…');
+      final path = await LocalStorageService.exportToXML();
+      showToast(context, '✅ XML saved: $path');
+      OpenFile.open(path);
+    } catch (e) {
+      showToast(context, 'Export failed: $e', isError: true);
+    }
+  }
+
+  Future<void> _exportJSON() async {
+    try {
+      showToast(context, 'Generating JSON…');
+      final path = await LocalStorageService.exportToJSON();
+      showToast(context, '✅ JSON saved: $path');
+      OpenFile.open(path);
+    } catch (e) {
+      showToast(context, 'Export failed: $e', isError: true);
     }
   }
 
@@ -128,9 +128,19 @@ class _RecordsScreenState extends State<RecordsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextButton.icon(
-                    onPressed: _exportExcel,
-                    icon: const Icon(Icons.download_rounded, size: 16, color: AppTheme.blue),
-                    label: const Text('Excel', style: TextStyle(color: AppTheme.blue, fontSize: 12)),
+                    onPressed: _exportXL,
+                    icon: const Icon(Icons.table_chart_outlined, size: 16, color: AppTheme.blue),
+                    label: const Text('XL', style: TextStyle(color: AppTheme.blue, fontSize: 12)),
+                  ),
+                  TextButton.icon(
+                    onPressed: _exportXML,
+                    icon: const Icon(Icons.code, size: 16, color: AppTheme.purple),
+                    label: const Text('XML', style: TextStyle(color: AppTheme.purple, fontSize: 12)),
+                  ),
+                  TextButton.icon(
+                    onPressed: _exportJSON,
+                    icon: const Icon(Icons.data_object, size: 16, color: Colors.orange),
+                    label: const Text('JSON', style: TextStyle(color: Colors.orange, fontSize: 12)),
                   ),
                   TextButton.icon(
                     onPressed: _load,
@@ -294,6 +304,8 @@ class _SurveyDetail extends StatelessWidget {
         const SizedBox(height: 16),
         Text(survey.surveyId ?? 'Survey', style: const TextStyle(fontSize: 12, color: AppTheme.ink3)),
         Text(survey.head, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+        if (survey.phone.isNotEmpty)
+          Text('📞 ${survey.phone}', style: const TextStyle(color: AppTheme.blue, fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
         Text('${survey.door}, ${survey.street} · ${survey.ward}',
             style: const TextStyle(color: AppTheme.ink2)),

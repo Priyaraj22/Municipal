@@ -10,7 +10,7 @@ class ApiService {
   // ── CONFIGURE YOUR SERVER URL ──────────────────────────────────────────────
   // Set this to your machine's LAN IP before building the APK.
   // Example: 'http://192.168.1.100:3000/api'
-  static String baseUrl = 'http://172.16.147.122:3000/api';
+  static String baseUrl = 'http://192.168.1.4:3000/api';
 
   static const String _tokenKey = 'rpm_survey_token';
 
@@ -95,18 +95,6 @@ class ApiService {
   static Future<Map<String, dynamic>> loginAdmin(String password) async {
     final r = await _fetch('/auth/login',
         method: 'POST', body: {'role': 'admin', 'password': password});
-    return r as Map<String, dynamic>;
-  }
-
-  static Future<Map<String, dynamic>> loginCitizen(String phone) async {
-    final r = await _fetch('/auth/login',
-        method: 'POST', body: {'role': 'citizen', 'phone': phone});
-    return r as Map<String, dynamic>;
-  }
-
-  static Future<Map<String, dynamic>> requestOtp(String phone) async {
-    final r = await _fetch('/auth/request-otp',
-        method: 'POST', body: {'phone': phone});
     return r as Map<String, dynamic>;
   }
 

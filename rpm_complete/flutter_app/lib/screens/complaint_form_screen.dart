@@ -1,4 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_provider.dart';
 import '../services/api_service.dart';
@@ -18,6 +21,8 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
   String? _issueType;
   final _descCtrl = TextEditingController();
   bool _submitting = false;
+  final List<File> _photos = [];
+  final ImagePicker _picker = ImagePicker();
 
   final List<String> _issues = [
     'Water Supply / குடிநீர்',
@@ -29,22 +34,53 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
     'Others / மற்றவை'
   ];
 
+  Future<void> _pickImage() async {
+    if (_photos.length >= 5) {
+      showToast(context, 'Maximum 5 photos allowed', isError: true);
+      return;
+    }
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 50, // Compress for faster upload
+      maxWidth: 1000,
+    );
+    if (image != null) {
+      setState(() {
+        _photos.add(File(image.path));
+      });
+    }
+  }
+
   Future<void> _submit() async {
     if (_issueType == null) {
       showToast(context, 'Please select issue type', isError: true);
+      return;
+    }
+    if (_photos.length < 2) {
+      showToast(context, 'Please upload at least 2 photos as evidence', isError: true);
       return;
     }
 
     setState(() => _submitting = true);
     try {
       final auth = context.read<AuthProvider>();
+      
+      // Convert photos to base64
+      List<String> base64Photos = [];
+      for (var f in _photos) {
+        final bytes = await f.readAsBytes();
+        base64Photos.add(base64Encode(bytes));
+      }
+
       await ApiService.registerComplaint({
         'survey_id': widget.surveyId,
         'citizen_mobile': auth.citizenPhone,
         'issue_type': _issueType,
         'description': _descCtrl.text.trim(),
         'street': widget.street,
+        'evidence_photos': base64Photos,
       });
+
       if (mounted) {
         showToast(context, '✅ Complaint registered successfully');
         Navigator.pop(context, true);
@@ -86,6 +122,57 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
                   controller: _descCtrl,
                   maxLines: 4,
                   decoration: const InputDecoration(hintText: 'Enter more details...'),
+                ),
+                const SizedBox(height: 24),
+
+                const FieldLabel(text: 'Evidence Photos (Min 2 required) *'),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 100,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      ..._photos.asMap().entries.map((e) => Stack(
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.only(right: 12),
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              image: DecorationImage(image: FileImage(e.value), fit: BoxFit.cover),
+                              border: Border.all(color: AppTheme.border),
+                            ),
+                          ),
+                          Positioned(
+                            top: 0, right: 12,
+                            child: GestureDetector(
+                              onTap: () => setState(() => _photos.removeAt(e.key)),
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                child: const Icon(Icons.close, size: 14, color: Colors.white),
+                              ),
+                            ),
+                          )
+                        ],
+                      )),
+                      if (_photos.length < 5)
+                        GestureDetector(
+                          onTap: _pickImage,
+                          child: Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              color: AppTheme.surface,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppTheme.blue.withOpacity(0.3), style: BorderStyle.values[1]),
+                            ),
+                            child: const Icon(Icons.add_a_photo_outlined, color: AppTheme.blue),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 32),
                 
