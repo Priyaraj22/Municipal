@@ -1,9 +1,12 @@
 // screens/home_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../services/auth_provider.dart';
 import '../theme/app_theme.dart';
 import 'survey_screen.dart';
 import 'records_screen.dart';
+import 'login_screen.dart';
 import '../widgets/ai_assistant.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -23,10 +26,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Rajapalayam · Local Family Survey'),
-        centerTitle: true,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Rajapalayam · Survey'),
+            Text(
+              '🪪 Surveyor: ${auth.collectorName ?? ''}',
+              style: const TextStyle(fontSize: 11, color: Colors.white70),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
+            onPressed: () => _confirmLogout(context, auth),
+          ),
+        ],
       ),
       body: _pages[_tabIndex],
       floatingActionButton: const AiAssistantFab(),
@@ -49,5 +69,30 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmLogout(BuildContext context, AuthProvider auth) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Logout?'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.rose),
+              child: const Text('Logout')),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      await auth.logout();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
   }
 }
