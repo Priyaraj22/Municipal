@@ -196,7 +196,7 @@ class _CoupleFormScreenState extends State<CoupleFormScreen> {
             _sec('🪪 Identification / அடையாளம்'),
             _txt('FR No.', _frnoCtrl, 'FRN-YYYY-XXXXXX'),
             _txt('EC No.', _ecnoCtrl, 'EC-YYYY-XXXXX'),
-            _txt('RCH ID', _rchidCtrl, 'RCH ID (wife)'),
+            _txt('Reproductive and Child Health (RCH) ID of the Woman', _rchidCtrl, 'RCH ID (wife)'),
 
             // ── Section 2: Couple Details ──────────────────────────────────
             _sec('💑 Couple Details / தம்பதியர் விவரம்'),
@@ -242,12 +242,12 @@ class _CoupleFormScreenState extends State<CoupleFormScreen> {
             _txt('Sterilisation Place', _sterilPlaceCtrl, 'Hospital name'),
 
             // ── Section 7: ANC / Antenatal ─────────────────────────────────
-            _sec('🤰 Antenatal Care (ANC)'),
+            _sec('🤰 Antenatal Care (ANC) / Maternal Care No (ACN)'),
             _txt('Pregnancy Test Result', _pregnTestCtrl, 'Positive / Negative / N/A'),
-            _txt('AN Number', _anNoCtrl, 'Antenatal number'),
-            _chip('ANC Done?', _yesNo, _ancDone,
+            _txt('Antenatal Number (AN No.)', _anNoCtrl, 'Antenatal number'),
+            _chip('Antenatal Care (ANC) Done?', _yesNo, _ancDone,
                 (v) => setState(() => _ancDone = v)),
-            _date('ANC Date', _ancDateCtrl),
+            _date('Antenatal Care (ANC) Date', _ancDateCtrl),
             _date('Next Visit Date', _nextVisitCtrl),
             _txt('Planned Delivery Place', _planDelPlaceCtrl, 'Hospital / PHC'),
             _txt('Current Health Status', _healthStatusCtrl, 'Good / Fair / Poor'),
