@@ -58,14 +58,12 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
     setState(() {
       switch (field) {
         case 'name': _errors['name'] = ValidationService.validateMemName(value); break;
-        case 'memno': _errors['memno'] = ValidationService.validateMemNo(value); break;
         case 'dob': _errors['dob'] = ValidationService.validateDob(value); break;
         case 'age': _errors['age'] = ValidationService.validateAge(value); break;
         case 'aadhar': _errors['aadhar'] = ValidationService.validateAadhar(value); break;
         case 'mobile': _errors['mobile'] = ValidationService.validateMobile(value); break;
         case 'income': _errors['income'] = ValidationService.validateIncome(value); break;
         case 'deathDate': _errors['deathDate'] = ValidationService.validateDeathDate(value); break;
-        case 'deathReason': _errors['deathReason'] = ValidationService.validateRemarks(value); break; // Reusing remarks validator for length
         case 'remarks': _errors['remarks'] = ValidationService.validateRemarks(value); break;
       }
     });
@@ -76,13 +74,11 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
     super.initState();
 
     _nameCtrl.addListener(() => _validateField('name', _nameCtrl.text));
-    _memnoCtrl.addListener(() => _validateField('memno', _memnoCtrl.text));
     _dobCtrl.addListener(() => _validateField('dob', _dobCtrl.text));
     _ageCtrl.addListener(() => _validateField('age', _ageCtrl.text));
     _aadharCtrl.addListener(() => _validateField('aadhar', _aadharCtrl.text));
     _mobileCtrl.addListener(() => _validateField('mobile', _mobileCtrl.text));
     _deathDateCtrl.addListener(() => _validateField('deathDate', _deathDateCtrl.text));
-    _deathReasonCtrl.addListener(() => _validateField('deathReason', _deathReasonCtrl.text));
     _remarksCtrl.addListener(() => _validateField('remarks', _remarksCtrl.text));
 
     if (widget.existing != null) {
@@ -91,7 +87,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
       _memno = m.memno.isEmpty ? null : m.memno;
       _dobCtrl.text = m.dob;
       _ageCtrl.text = m.age;
-      _calculateAge(m.dob); // Initial age calculation
+      _calculateAge(m.dob);
 
       _relationship = m.rel.isEmpty ? null : m.rel;
       final relOptions = [
@@ -198,24 +194,10 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
     _validateField('age', _ageCtrl.text);
     _validateField('aadhar', _aadharCtrl.text);
     _validateField('mobile', _mobileCtrl.text);
-    _validateField('deathDate', _deathDateCtrl.text);
-    _validateField('deathReason', _deathReasonCtrl.text);
-    _validateField('remarks', _remarksCtrl.text);
 
-    if (_errors.values.any((e) => e != null)) {
+    if (_errors['name'] != null || _errors['dob'] != null || _errors['age'] != null || _errors['aadhar'] != null || _errors['mobile'] != null) {
       showToast(context, 'Please fix the errors before saving', isError: true);
       return;
-    }
-
-    final mobile = _mobileCtrl.text.trim();
-    if (mobile.isNotEmpty) {
-      if (mobile.length != 10 || !RegExp(r'^[6-9]').hasMatch(mobile)) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Invalid Mobile Number (Must be 10 digits starting with 6-9)'),
-          backgroundColor: AppTheme.rose,
-        ));
-        return;
-      }
     }
 
     final relVal = (_relationship == 'Others') ? _relOtherCtrl.text.trim() : (_relationship ?? '');
@@ -275,60 +257,21 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Basic Info
             _sectionHeader('👤 Basic Information'),
-<<<<<<< HEAD
-            _txt('Name *', _nameCtrl, 'Full name'),
-            _drop('Member No.', List.generate(20, (i) => (i + 1).toString()), _memno, (v) => setState(() => _memno = v), hint: '— Select —'),
-=======
             _txt('Name *', _nameCtrl, 'Full name', errorText: _errors['name']),
-            _txt('Member No.', _memnoCtrl, 'e.g. 001', errorText: _errors['memno']),
->>>>>>> origin
+            _drop('Member No.', List.generate(20, (i) => (i + 1).toString()), _memno, (v) => setState(() => _memno = v), hint: '— Select —'),
             _drop('Relationship', [
-              'Head of Family',
-              'Wife',
-              'Husband',
-              'Son',
-              'Daughter',
-              'Father',
-              'Mother',
-              'Father-in-law',
-              'Mother-in-law',
-              'Brother',
-              'Sister',
-              'Grandfather',
-              'Grandmother',
-              'Son-in-law',
-              'Daughter-in-law',
-              'Grandson',
-              'Granddaughter',
-              'Others'
+              'Head of Family', 'Wife', 'Husband', 'Son', 'Daughter', 'Father', 'Mother',
+              'Father-in-law', 'Mother-in-law', 'Brother', 'Sister', 'Grandfather',
+              'Grandmother', 'Son-in-law', 'Daughter-in-law', 'Grandson', 'Granddaughter', 'Others'
             ], _relationship, (v) => setState(() => _relationship = v), hint: '— Select —'),
             if (_relationship == 'Others') _txt('Specify Relationship', _relOtherCtrl, 'Specify'),
 
             _txt('Date of Birth', _dobCtrl, 'YYYY-MM-DD', isDate: true, onDateSelected: (v) => _calculateAge(v), errorText: _errors['dob']),
             _txt('Age', _ageCtrl, 'Age in years', keyboardType: TextInputType.number, errorText: _errors['age']),
             _chip('Gender', ['Male', 'Female', 'Other'], _gender, (v) => setState(() => _gender = v)),
-<<<<<<< HEAD
-            _txt('Aadhar No.', _aadharCtrl, '12-digit number',
-              keyboardType: TextInputType.number,
-              maxLength: 12,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly]),
-            _txt('Mobile No.', _mobileCtrl, '10-digit number',
-              keyboardType: TextInputType.phone,
-              maxLength: 10,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              validator: (v) {
-                if (v == null || v.isEmpty) return null;
-                if (v.length != 10) return 'Enter 10 digits';
-                if (!RegExp(r'^[6-9]').hasMatch(v)) return 'Starts with 6-9';
-                return null;
-              },
-            ),
-=======
-            _txt('Aadhar No.', _aadharCtrl, '12-digit number', keyboardType: TextInputType.number, errorText: _errors['aadhar']),
-            _txt('Mobile No.', _mobileCtrl, '10-digit number', keyboardType: TextInputType.phone, errorText: _errors['mobile']),
->>>>>>> origin
+            _txt('Aadhar No.', _aadharCtrl, '12-digit number', keyboardType: TextInputType.number, errorText: _errors['aadhar'], maxLength: 12),
+            _txt('Mobile No.', _mobileCtrl, '10-digit number', keyboardType: TextInputType.phone, errorText: _errors['mobile'], maxLength: 10),
             _chip('Blood Group', ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'],
                 _blood, (v) => setState(() => _blood = v)),
             _chip('Marital Status', ['Unmarried', 'Married', 'Widowed', 'Divorced', 'Separated'],
@@ -337,49 +280,20 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
             const SizedBox(height: 16),
             _sectionHeader('🎓 Education & Occupation'),
             _drop('Education', [
-              'No Formal Education',
-              'Pre-School / Anganwadi',
-              'Primary (1–5)',
-              'Upper Primary (6–8)',
-              'Secondary (9–10)',
-              'Higher Secondary (11–12)',
-              'Diploma / ITI',
-              'Undergraduate',
-              'Postgraduate',
-              'Professional (MBBS/BE etc.)',
-              'Others'
+              'No Formal Education', 'Pre-School / Anganwadi', 'Primary (1–5)', 'Upper Primary (6–8)', 'Secondary (9–10)', 'Higher Secondary (11–12)', 'Diploma / ITI', 'Undergraduate', 'Postgraduate', 'Professional (MBBS/BE etc.)', 'Others'
             ], _edu, (v) => setState(() => _edu = v), hint: '— Select —'),
             if (_edu == 'Others') _txt('Specify Education', _eduOtherCtrl, 'Specify'),
 
             _drop('Occupation', [
-              'Agriculture',
-              'Business',
-              'Daily Wages',
-              'Government Employee',
-              'Private Employee',
-              'Unemployed',
-              'Student',
-              'Homemaker',
-              'Others'
+              'Agriculture', 'Business', 'Daily Wages', 'Government Employee', 'Private Employee', 'Unemployed', 'Student', 'Homemaker', 'Others'
             ], _occ, (v) => setState(() => _occ = v), hint: '— Select —'),
             if (_occ == 'Others') _txt('Specify Occupation', _occOtherCtrl, 'Specify'),
 
             _drop('Annual Income (₹)', [
-              'Below ₹25,000',
-              '₹25,001 – ₹50,000',
-              '₹50,001 – ₹1,00,000',
-              '₹1,00,001 – ₹2,00,000',
-              '₹2,00,001 – ₹5,00,000',
-              'Above ₹5,00,000',
-              'Not Applicable'
+              'Below ₹25,000', '₹25,001 – ₹50,000', '₹50,001 – ₹1,00,000', '₹1,00,001 – ₹2,00,000', '₹2,00,001 – ₹5,00,000', 'Above ₹5,00,000', 'Not Applicable'
             ], _income, (v) => setState(() => _income = v), hint: '— Select —'),
 
-            _drop('Religion', [
-              'Hindu',
-              'Muslim',
-              'Christian',
-              'Others'
-            ], _religion, (v) => setState(() => _religion = v), hint: '— Select —'),
+            _drop('Religion', ['Hindu', 'Muslim', 'Christian', 'Others'], _religion, (v) => setState(() => _religion = v), hint: '— Select —'),
             if (_religion == 'Others') _txt('Specify Religion', _religionOtherCtrl, 'Specify'),
 
             const SizedBox(height: 16),
@@ -391,13 +305,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                 })),
             if (_hasDisability == 'Yes') ...[
               _drop('Disability Category', [
-                'Hearing Impairment',
-                'Vision Loss',
-                'Autism',
-                'Physical Disability',
-                'Functional Impairment',
-                'Multiple Disabilities',
-                'Others'
+                'Hearing Impairment', 'Vision Loss', 'Autism', 'Physical Disability', 'Functional Impairment', 'Multiple Disabilities', 'Others'
               ], _disability, (v) => setState(() => _disability = v), hint: '— Select —'),
               if (_disability == 'Others') _txt('Specify Disability', _disabilityOtherCtrl, 'Specify'),
             ],
@@ -406,54 +314,23 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                 (v) => setState(() => _hasChronicDisease = v)),
             if (_hasChronicDisease == 'Yes') ...[
               _drop('NCD (Non-Communicable)', [
-                'None',
-                'High Blood Pressure / Hypertension',
-                'Diabetes',
-                'Heart Disease',
-                'Respiratory Disease',
-                'Breast Cancer',
-                'Oral Cancer',
-                'Kidney Disorders',
-                'Chronic Mental Health Disorders',
-                'Others'
+                'None', 'High Blood Pressure / Hypertension', 'Diabetes', 'Heart Disease', 'Respiratory Disease', 'Breast Cancer', 'Oral Cancer', 'Kidney Disorders', 'Chronic Mental Health Disorders', 'Others'
               ], _chronicNCD, (v) => setState(() => _chronicNCD = v), hint: '— Select —'),
               if (_chronicNCD == 'Others') _txt('Specify NCD', _ncdOtherCtrl, 'Specify'),
 
               _drop('CD (Communicable)', [
-                'None',
-                'TB',
-                'Malaria',
-                'Dengue',
-                'HIV/AIDS',
-                'Hepatitis',
-                'Others'
+                'None', 'TB', 'Malaria', 'Dengue', 'HIV/AIDS', 'Hepatitis', 'Others'
               ], _chronicCD, (v) => setState(() => _chronicCD = v), hint: '— Select —'),
               if (_chronicCD == 'Others') _txt('Specify CD', _cdOtherCtrl, 'Specify'),
 
               _drop('Treatment Place', [
-                'None',
-                'Government Hospital',
-                'PHC (Primary Health Centre)',
-                'Private Hospital',
-                'Sub-Centre',
-                'Not under treatment',
-                'Others'
+                'None', 'Government Hospital', 'PHC (Primary Health Centre)', 'Private Hospital', 'Sub-Centre', 'Not under treatment', 'Others'
               ], _treatmentPlace, (v) => setState(() => _treatmentPlace = v), hint: '— Select —'),
               if (_treatmentPlace == 'Others') _txt('Specify Treatment Place', _treatmentOtherCtrl, 'Specify'),
             ],
             const SizedBox(height: 12),
             _multiChip('Insurance & Welfare Schemes', [
-              'None',
-              'PMJAY',
-              'CM Health Insurance',
-              'ESI',
-              'Private Insurance',
-              'Old Age Pension',
-              'Widow Pension',
-              'Disability Pension',
-              'MGNREGS',
-              'Scholarship',
-              'Others'
+              'None', 'PMJAY', 'CM Health Insurance', 'ESI', 'Private Insurance', 'Old Age Pension', 'Widow Pension', 'Disability Pension', 'MGNREGS', 'Scholarship', 'Others'
             ], _selectedSchemes, (v) => setState(() => _selectedSchemes = v)),
             const SizedBox(height: 12),
             _chip('Vaccination Status', ['Complete', 'Partial', 'Not Done', 'Unknown'],
@@ -462,7 +339,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
             const SizedBox(height: 16),
             _sectionHeader('📝 Remarks'),
             _txt('Death Date (if applicable)', _deathDateCtrl, 'YYYY-MM-DD', isDate: true, errorText: _errors['deathDate']),
-            _txt('Death Reason', _deathReasonCtrl, 'Cause of death', errorText: _errors['deathReason']),
+            _txt('Death Reason', _deathReasonCtrl, 'Cause of death'),
             _txt('Remarks', _remarksCtrl, 'Additional notes', errorText: _errors['remarks']),
 
             const SizedBox(height: 24),
@@ -484,11 +361,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
   );
 
   Widget _txt(String label, TextEditingController ctrl, String hint,
-<<<<<<< HEAD
-      {TextInputType? keyboardType, bool isDate = false, ValueChanged<String>? onDateSelected, int? maxLength, List<TextInputFormatter>? inputFormatters, String? Function(String?)? validator}) {
-=======
-      {TextInputType? keyboardType, bool isDate = false, ValueChanged<String>? onDateSelected, String? errorText}) {
->>>>>>> origin
+      {TextInputType? keyboardType, bool isDate = false, ValueChanged<String>? onDateSelected, int? maxLength, String? errorText}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Column(
@@ -499,58 +372,15 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
             controller: ctrl,
             keyboardType: keyboardType,
             readOnly: isDate,
-<<<<<<< HEAD
             maxLength: maxLength,
-            inputFormatters: inputFormatters,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            validator: validator,
-            onTap: isDate ? () async {
-              final d = await showDatePicker(
-                context: context,
-                initialDate: DateTime.now(),
-                firstDate: DateTime(1900),
-                lastDate: DateTime.now(),
-              );
-              if (d != null) {
-                final dateStr = d.toIso8601String().split('T')[0];
-                ctrl.text = dateStr;
-                if (onDateSelected != null) onDateSelected(dateStr);
-              }
-            } : null,
-            decoration: InputDecoration(
-              hintText: hint,
-              suffixIcon: isDate ? const Icon(Icons.calendar_today, size: 18) : null,
-              counterText: "",
-=======
             onTap: isDate ? () => _pickDate(ctrl, onDateSelected: onDateSelected) : null,
             decoration: InputDecoration(
               hintText: hint,
-              suffixIcon: isDate
-                ? Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (ctrl.text.isNotEmpty)
-                        IconButton(
-                          icon: const Icon(Icons.clear, size: 18),
-                          onPressed: () {
-                            setState(() {
-                              ctrl.clear();
-                              if (onDateSelected != null) onDateSelected('');
-                            });
-                          },
-                        ),
-                      IconButton(
-                        icon: const Icon(Icons.calendar_today, size: 18),
-                        onPressed: () => _pickDate(ctrl, onDateSelected: onDateSelected),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                  )
-                : null,
+              counterText: "",
               errorText: errorText,
+              suffixIcon: isDate ? const Icon(Icons.calendar_today, size: 18) : null,
               enabledBorder: errorText != null ? const OutlineInputBorder(borderSide: BorderSide(color: AppTheme.rose, width: 1)) : null,
               focusedBorder: errorText != null ? const OutlineInputBorder(borderSide: BorderSide(color: AppTheme.rose, width: 2)) : null,
->>>>>>> origin
             ),
           ),
         ],

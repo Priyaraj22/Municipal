@@ -240,15 +240,9 @@ class _CoupleFormScreenState extends State<CoupleFormScreen> {
           children: [
             // ── Section 1: Identification ──────────────────────────────────
             _sec('🪪 Identification / அடையாளம்'),
-<<<<<<< HEAD
-            _txt('FR No.', _frnoCtrl, 'FRN-YYYY-XXXXXX'),
-            _txt('EC No.', _ecnoCtrl, 'EC-YYYY-XXXXX'),
-            _txt('Reproductive and Child Health (RCH) ID of the Woman', _rchidCtrl, 'RCH ID (wife)'),
-=======
-            _txt('FR No.', _frnoCtrl, 'Family register number', errorText: _errors['frno']),
-            _txt('EC No.', _ecnoCtrl, 'Eligible couple number', errorText: _errors['ecno']),
-            _txt('RCH ID', _rchidCtrl, 'RCH ID (wife)', errorText: _errors['rchid']),
->>>>>>> origin
+            _txt('Family Register (FR) No.', _frnoCtrl, 'Family register number', errorText: _errors['frno']),
+            _txt('Eligible Couple (EC) No.', _ecnoCtrl, 'Eligible couple number', errorText: _errors['ecno']),
+            _txt('Reproductive and Child Health (RCH) ID of the Woman', _rchidCtrl, 'RCH ID (wife)', errorText: _errors['rchid']),
 
             // ── Section 2: Couple Details ──────────────────────────────────
             _sec('💑 Couple Details / தம்பதியர் விவரம்'),
@@ -296,13 +290,8 @@ class _CoupleFormScreenState extends State<CoupleFormScreen> {
             // ── Section 7: ANC / Antenatal ─────────────────────────────────
             _sec('🤰 Antenatal Care (ANC) / Maternal Care No (ACN)'),
             _txt('Pregnancy Test Result', _pregnTestCtrl, 'Positive / Negative / N/A'),
-<<<<<<< HEAD
-            _txt('Antenatal Number (AN No.)', _anNoCtrl, 'Antenatal number'),
+            _txt('Antenatal Number (AN No.)', _anNoCtrl, 'Antenatal number', errorText: _errors['anNo']),
             _chip('Antenatal Care (ANC) Done?', _yesNo, _ancDone,
-=======
-            _txt('AN Number', _anNoCtrl, 'Antenatal number', errorText: _errors['anNo']),
-            _chip('ANC Done?', _yesNo, _ancDone,
->>>>>>> origin
                 (v) => setState(() => _ancDone = v)),
             _date('Antenatal Care (ANC) Date', _ancDateCtrl),
             _date('Next Visit Date', _nextVisitCtrl),

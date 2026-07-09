@@ -43,7 +43,6 @@ class ValidationService {
     final v = value?.trim() ?? '';
     if (v.isEmpty) return 'Door No. is required';
     if (v.length > 20) return 'Maximum 20 characters';
-    if (v.isNotEmpty && !_alphanumericRegex.hasMatch(v)) return 'Letters and numbers only';
     return null;
   }
 
@@ -58,7 +57,6 @@ class ValidationService {
     final v = value?.trim() ?? '';
     if (v.isEmpty) return null;
     if (v.length > 30) return 'Maximum 30 characters';
-    if (!_alphanumericRegex.hasMatch(v)) return 'Letters and numbers only';
     return null;
   }
 
@@ -75,7 +73,6 @@ class ValidationService {
     final v = value?.trim() ?? '';
     if (v.isEmpty) return null;
     if (v.length > 30) return 'Maximum 30 characters';
-    if (!_alphanumericRegex.hasMatch(v)) return 'Letters and numbers only';
     return null;
   }
 
@@ -83,7 +80,7 @@ class ValidationService {
     final v = value?.trim() ?? '';
     if (v.isEmpty) return null;
     if (!_numericRegex.hasMatch(v) || v.length != 14) {
-      return 'ABHA ID must contain exactly 14 digits.';
+      return 'Exactly 14 digits required';
     }
     return null;
   }
@@ -92,7 +89,6 @@ class ValidationService {
     final v = value?.trim() ?? '';
     if (v.isEmpty) return null;
     if (v.length > 30) return 'Maximum 30 characters';
-    if (!_alphanumericRegex.hasMatch(v)) return 'Letters and numbers only';
     return null;
   }
 
@@ -100,7 +96,6 @@ class ValidationService {
     final v = value?.trim() ?? '';
     if (v.isEmpty) return null;
     if (v.length > 30) return 'Maximum 30 characters';
-    if (!_alphanumericRegex.hasMatch(v)) return 'Letters and numbers only';
     return null;
   }
 
@@ -108,7 +103,6 @@ class ValidationService {
     final v = value?.trim() ?? '';
     if (v.isEmpty) return null;
     if (v.length > 30) return 'Maximum 30 characters';
-    if (!_alphanumericRegex.hasMatch(v)) return 'Letters and numbers only';
     return null;
   }
 
@@ -124,7 +118,6 @@ class ValidationService {
   static String? validateMemNo(String? value) {
     final v = value?.trim() ?? '';
     if (v.isEmpty) return null;
-    if (!_alphanumericRegex.hasMatch(v)) return 'Letters and numbers only';
     return null;
   }
 
@@ -177,8 +170,8 @@ class ValidationService {
     final v = value?.trim() ?? '';
     if (v.isEmpty) return 'Mobile number is required';
     if (!_numericRegex.hasMatch(v)) return 'Digits only';
-    if (v.length > 10) return 'Phone number should not exceed 10 digits.';
-    if (v.length < 10) return 'Phone number must contain exactly 10 digits.';
+    if (v.length != 10) return 'Must be 10 digits';
+    if (!RegExp(r'^[6-9]').hasMatch(v)) return 'Must start with 6-9';
     return null;
   }
 
@@ -251,20 +244,6 @@ class ValidationService {
     final List<String> errors = [];
     final List<String> warnings = [];
 
-<<<<<<< HEAD
-    // 1. Basic Mandatory Fields
-    if (survey.ward.isEmpty) errors.add('❌ Please select a ward.');
-    if (survey.head.isEmpty) errors.add('❌ Family Head Name cannot be empty.');
-    if (survey.phone.isEmpty) {
-      errors.add('❌ Family Head Phone Number is required.');
-    } else if (survey.phone.length != 10) {
-      errors.add('❌ Family Head: Phone number must contain exactly 10 digits.');
-    } else if (!RegExp(r'^[6-9]').hasMatch(survey.phone)) {
-      errors.add('❌ Family Head: Phone number must start with 6, 7, 8, or 9.');
-    }
-    if (survey.door.isEmpty) errors.add('❌ Door No. is required.');
-    if (survey.street.isEmpty) errors.add('❌ Street Name is required.');
-=======
     // Use the individual validators for full survey validation
     String? err;
     if ((err = validateWard(survey.ward)) != null) errors.add('Ward: $err');
@@ -273,7 +252,6 @@ class ValidationService {
     if ((err = validateStreet(survey.street)) != null) errors.add('Street: $err');
     if ((err = validateMobile(survey.phone)) != null) errors.add('Phone: $err');
     if ((err = validateAbha(survey.abha)) != null) errors.add('ABHA: $err');
->>>>>>> origin
 
     // Members Validation
     final Set<String> aadhaarSet = {};

@@ -15,6 +15,7 @@ import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 import 'member_form.dart';
 import 'couple_form.dart';
+import 'submission_success_screen.dart';
 
 class SurveyScreen extends StatefulWidget {
   final Survey? existing;
@@ -196,12 +197,10 @@ class _SurveyScreenState extends State<SurveyScreen> {
   }
 
   Future<void> _loadWards() async {
-    // 1. Load the 42 standard wards immediately for offline speed
     setState(() {
       _wardNames = List.generate(42, (i) => 'Ward ${i + 1}');
     });
 
-    // 2. Then try to fetch updated names from the API in the background
     try {
       final wards = await ApiService.getWards();
       if (wards.isNotEmpty && mounted) {
@@ -209,9 +208,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
           _wardNames = wards.map((w) => w.wardName).toList();
         });
       }
-    } catch (_) {
-      // Stay with the 42 wards if API fails
-    }
+    } catch (_) {}
   }
 
   void _clearForm() {
@@ -224,39 +221,19 @@ class _SurveyScreenState extends State<SurveyScreen> {
       _bpl = null; _caste = null; _insurance = null;
       _housing = null; _water = null; _toilet = null;
       _members.clear(); _couples.clear();
+      _errors.clear();
     });
   }
 
   bool _validateStep0() {
-<<<<<<< HEAD
-    if (_ward == null || _ward!.isEmpty) { showToast(context, 'Ward No. is required', isError: true); return false; }
-    if (_streetCtrl.text.trim().isEmpty) { showToast(context, 'Street name is required', isError: true); return false; }
-    if (_doorCtrl.text.trim().isEmpty) { showToast(context, 'Door No. is required', isError: true); return false; }
-    if (_headCtrl.text.trim().isEmpty) { showToast(context, 'Family Head name is required', isError: true); return false; }
-
-    final phone = _phoneCtrl.text.trim();
-    if (phone.isEmpty) {
-      showToast(context, 'Phone Number is required', isError: true);
-      return false;
-    }
-    if (phone.length != 10 || !RegExp(r'^[6-9]').hasMatch(phone)) {
-      showToast(context, 'Invalid Phone Number (Must be 10 digits starting with 6-9)', isError: true);
-=======
     _validateField('ward', _ward ?? '');
     _validateField('street', _streetCtrl.text);
     _validateField('door', _doorCtrl.text);
     _validateField('head', _headCtrl.text);
     _validateField('phone', _phoneCtrl.text);
-    _validateField('abha', _abhaCtrl.text);
-    _validateField('pmja', _pmjaCtrl.text);
-    _validateField('phr', _phrCtrl.text);
-    _validateField('ration', _rationCtrl.text);
-    _validateField('smartcard', _smartcardCtrl.text);
-    _validateField('famno', _famnoCtrl.text);
 
-    if (_errors.values.any((e) => e != null)) {
+    if (_errors['ward'] != null || _errors['street'] != null || _errors['door'] != null || _errors['head'] != null || _errors['phone'] != null) {
       showToast(context, 'Please fix the errors in the form', isError: true);
->>>>>>> origin
       return false;
     }
     return true;
@@ -315,13 +292,11 @@ class _SurveyScreenState extends State<SurveyScreen> {
         survey.id = widget.existing!.id;
         await LocalStorageService.saveSurvey(survey);
         if (mounted) {
-          String msg;
           if (hold) {
-            msg = '📥 Draft updated!';
+            showToast(context, '📥 Draft updated!');
           } else {
-            msg = widget.existing!.status == 'Hold' ? '✅ Survey finalized and submitted!' : '✅ Survey updated!';
+            showToast(context, '✅ Survey finalized and submitted!');
           }
-          showToast(context, msg);
           Navigator.pop(context, true);
         }
       } else {
@@ -329,8 +304,16 @@ class _SurveyScreenState extends State<SurveyScreen> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('local_survey_draft');
         if (mounted) {
-          showToast(context, hold ? '📥 Draft saved!' : '✅ Survey saved!');
-          _clearForm();
+          if (hold) {
+            showToast(context, '📥 Draft saved!');
+            _clearForm();
+          } else {
+            _clearForm();
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SubmissionSuccessScreen()),
+            );
+          }
         }
       }
     } catch (e) {
@@ -384,18 +367,6 @@ class _Step0Family extends StatelessWidget {
           title: 'Location Details', subtitle: 'Ward No., Street, Door, IDs',
           body: Column(
             children: [
-<<<<<<< HEAD
-              _DropField('Ward No. *', s._wardNames, s._ward, (v) => s.setState(() { s._ward = v; s._saveDraft(); }), hint: '— Select —'),
-              _TxtField('Street Name *', s._streetCtrl, 'Street name'),
-              _TxtField('Door No. *', s._doorCtrl, 'e.g. 12/A'),
-              const SizedBox(height: 12),
-              _TxtField('Family Register No.', s._famnoCtrl, 'FRN-YYYY-XXXXXX'),
-              _TxtField('Ayushman Bharat Health Account (ABHA) ID', s._abhaCtrl, 'ABHA number'),
-              _TxtField('Pradhan Mantri Jan Arogya Yojana (PMJA) No.', s._pmjaCtrl, 'PMJA number'),
-              _TxtField('Permanent Health Register (PHR) No.', s._phrCtrl, 'PHR number'),
-              _TxtField('Ration Card No.', s._rationCtrl, 'Ration card number'),
-              _TxtField('Smart Card ID', s._smartcardCtrl, 'Smart card number'),
-=======
               _DropField('Ward No. *', s._wardNames, s._ward, (v) {
                 s.setState(() { s._ward = v; s._saveDraft(); });
                 s._validateField('ward', v ?? '');
@@ -403,13 +374,12 @@ class _Step0Family extends StatelessWidget {
               _TxtField('Street Name *', s._streetCtrl, 'Street name', errorText: s._errors['street']),
               _TxtField('Door No. *', s._doorCtrl, 'e.g. 12A', errorText: s._errors['door']),
               const SizedBox(height: 12),
-              _TxtField('Family Register No.', s._famnoCtrl, 'FR number', errorText: s._errors['famno']),
-              _TxtField('ABHA ID', s._abhaCtrl, 'ABHA number', errorText: s._errors['abha']),
-              _TxtField('PMJA No.', s._pmjaCtrl, 'PMJA number', errorText: s._errors['pmja']),
-              _TxtField('PHR No.', s._phrCtrl, 'PHR number', errorText: s._errors['phr']),
+              _TxtField('Family Register (FR) No.', s._famnoCtrl, 'FRN-YYYY-XXXXXX', errorText: s._errors['famno']),
+              _TxtField('Ayushman Bharat Health Account (ABHA) ID', s._abhaCtrl, 'ABHA number', errorText: s._errors['abha'], keyboardType: TextInputType.number, maxLength: 14),
+              _TxtField('Pradhan Mantri Jan Arogya Yojana (PMJA) No.', s._pmjaCtrl, 'PMJA number', errorText: s._errors['pmja']),
+              _TxtField('Permanent Health Register (PHR) No.', s._phrCtrl, 'PHR number', errorText: s._errors['phr']),
               _TxtField('Ration Card No.', s._rationCtrl, 'Ration card number', errorText: s._errors['ration']),
               _TxtField('Smart Card ID', s._smartcardCtrl, 'Smart card number', errorText: s._errors['smartcard']),
->>>>>>> origin
             ],
           ),
         ),
@@ -419,23 +389,8 @@ class _Step0Family extends StatelessWidget {
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-<<<<<<< HEAD
-              _TxtField('Family Head Name *', s._headCtrl, 'Name'),
-              _TxtField('Phone Number *', s._phoneCtrl, 'Mobile number',
-                keyboardType: TextInputType.phone,
-                maxLength: 10,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                validator: (v) {
-                  if (v == null || v.isEmpty) return null;
-                  if (v.length != 10) return 'Enter 10 digits';
-                  if (!RegExp(r'^[6-9]').hasMatch(v)) return 'Starts with 6-9';
-                  return null;
-                },
-              ),
-=======
               _TxtField('Family Head Name *', s._headCtrl, 'Name', errorText: s._errors['head']),
-              _TxtField('Phone Number *', s._phoneCtrl, 'Mobile number', keyboardType: TextInputType.phone, errorText: s._errors['phone']),
->>>>>>> origin
+              _TxtField('Phone Number *', s._phoneCtrl, 'Mobile number', keyboardType: TextInputType.phone, errorText: s._errors['phone'], maxLength: 10),
               const SizedBox(height: 12),
               _ChipRow('BPL (Below Poverty Line) / APL (Above Poverty Line) Status *', ['BPL', 'APL', 'Unknown'], s._bpl, (v) => s.setState(() { s._bpl = v; s._saveDraft(); })),
               const SizedBox(height: 12),
@@ -590,52 +545,34 @@ class _DraftBanner extends StatelessWidget {
   }
 }
 
-<<<<<<< HEAD
 Widget _TxtField(String label, TextEditingController ctrl, String hint, {
   bool required = false,
   TextInputType? keyboardType,
   int? maxLength,
   List<TextInputFormatter>? inputFormatters,
-  String? Function(String?)? validator,
+  String? errorText,
 }) {
-=======
-Widget _TxtField(String label, TextEditingController ctrl, String hint, {bool required = false, TextInputType? keyboardType, String? errorText}) {
->>>>>>> origin
   return Padding(
     padding: const EdgeInsets.only(bottom: 10),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         FieldLabel(text: label, required: required),
-<<<<<<< HEAD
         TextFormField(
           controller: ctrl,
           keyboardType: keyboardType,
           maxLength: maxLength,
           inputFormatters: inputFormatters,
-          autovalidateMode: AutovalidateMode.onUserInteraction,
-          validator: validator,
-          decoration: InputDecoration(
-            hintText: hint,
-            counterText: "", // Hide character counter
-          ),
-        )
-      ]
-    )
-=======
-        TextField(
-          controller: ctrl,
-          keyboardType: keyboardType,
           decoration: InputDecoration(
             hintText: hint,
             errorText: errorText,
+            counterText: "", // Hide character counter
             enabledBorder: errorText != null ? const OutlineInputBorder(borderSide: BorderSide(color: AppTheme.rose, width: 1)) : null,
             focusedBorder: errorText != null ? const OutlineInputBorder(borderSide: BorderSide(color: AppTheme.rose, width: 2)) : null,
           ),
         )
       ],
     ),
->>>>>>> origin
   );
 }
 Widget _DropField(String label, List<String> opts, String? value, ValueChanged<String?> onChanged, {String hint = 'Select…', String? errorText}) {
