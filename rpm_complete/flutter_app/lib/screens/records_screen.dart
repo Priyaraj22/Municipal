@@ -63,20 +63,9 @@ class _RecordsScreenState extends State<RecordsScreen> {
 
   Future<void> _exportXL() async {
     try {
-      showToast(context, 'Generating Excel…');
+      showToast(context, 'Generating Excel for download…');
       final path = await LocalStorageService.exportToExcel();
-      showToast(context, '✅ Excel saved: $path');
-      OpenFile.open(path);
-    } catch (e) {
-      showToast(context, 'Export failed: $e', isError: true);
-    }
-  }
-
-  Future<void> _exportXML() async {
-    try {
-      showToast(context, 'Generating XML…');
-      final path = await LocalStorageService.exportToXML();
-      showToast(context, '✅ XML saved: $path');
+      showToast(context, '✅ Excel downloaded to Downloads folder');
       OpenFile.open(path);
     } catch (e) {
       showToast(context, 'Export failed: $e', isError: true);
@@ -124,28 +113,30 @@ class _RecordsScreenState extends State<RecordsScreen> {
             children: [
               Text('${_filtered.length} records',
                   style: const TextStyle(fontSize: 13, color: AppTheme.ink3)),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+              Wrap(
+                spacing: 4,
+                runSpacing: 0,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   TextButton.icon(
                     onPressed: _exportXL,
-                    icon: const Icon(Icons.table_chart_outlined, size: 16, color: AppTheme.blue),
-                    label: const Text('XL', style: TextStyle(color: AppTheme.blue, fontSize: 12)),
-                  ),
-                  TextButton.icon(
-                    onPressed: _exportXML,
-                    icon: const Icon(Icons.code, size: 16, color: AppTheme.purple),
-                    label: const Text('XML', style: TextStyle(color: AppTheme.purple, fontSize: 12)),
+                    icon: const Icon(Icons.table_chart_outlined, size: 14, color: AppTheme.blue),
+                    label: const Text('XL Download', style: TextStyle(color: AppTheme.blue, fontSize: 11)),
+                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: 8)),
                   ),
                   TextButton.icon(
                     onPressed: _exportJSON,
-                    icon: const Icon(Icons.data_object, size: 16, color: Colors.orange),
-                    label: const Text('JSON', style: TextStyle(color: Colors.orange, fontSize: 12)),
+                    icon: const Icon(Icons.data_object, size: 14, color: Colors.orange),
+                    label: const Text('JSON Download', style: TextStyle(color: Colors.orange, fontSize: 11)),
+                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: 8)),
                   ),
-                  TextButton.icon(
+                  IconButton(
                     onPressed: _load,
-                    icon: const Icon(Icons.refresh, size: 16),
-                    label: const Text('Refresh', style: TextStyle(fontSize: 12)),
+                    icon: const Icon(Icons.refresh, size: 18),
+                    tooltip: 'Refresh',
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(8),
                   ),
                 ],
               ),
@@ -302,7 +293,7 @@ class _SurveyDetail extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        Text(survey.surveyId ?? 'Survey', style: const TextStyle(fontSize: 12, color: AppTheme.ink3)),
+        Text('Survey ID: ${survey.id ?? '—'}', style: const TextStyle(fontSize: 12, color: AppTheme.ink3)),
         Text(survey.head, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
         if (survey.phone.isNotEmpty)
           Text('📞 ${survey.phone}', style: const TextStyle(color: AppTheme.blue, fontWeight: FontWeight.w600)),

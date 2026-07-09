@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS surveys (
   housing         TEXT,                      -- Type of House
   water           TEXT,                      -- Water Source
   toilet          TEXT,                      -- Toilet Facility
+  status          TEXT NOT NULL DEFAULT 'Submitted',
 
   -- Collection metadata
   collector       TEXT NOT NULL,
@@ -271,6 +272,9 @@ CREATE TABLE IF NOT EXISTS complaints (
     description TEXT,
     street TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'Received',
+    evidence_photos TEXT[],
+    citizen_feedback TEXT,
+    citizen_rating INTEGER,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -290,4 +294,3 @@ CREATE TABLE IF NOT EXISTS correction_requests (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_dedupe_complaints
 ON complaints (street, issue_type)
 WHERE status NOT IN ('Resolved', 'Closed');
-

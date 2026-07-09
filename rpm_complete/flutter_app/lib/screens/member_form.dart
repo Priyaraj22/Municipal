@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/survey_models.dart';
+import '../services/validation_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 
@@ -51,9 +52,39 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
   String? _vaccination;
   List<String> _selectedSchemes = [];
 
+  final Map<String, String?> _errors = {};
+
+  void _validateField(String field, String value) {
+    setState(() {
+      switch (field) {
+        case 'name': _errors['name'] = ValidationService.validateMemName(value); break;
+        case 'memno': _errors['memno'] = ValidationService.validateMemNo(value); break;
+        case 'dob': _errors['dob'] = ValidationService.validateDob(value); break;
+        case 'age': _errors['age'] = ValidationService.validateAge(value); break;
+        case 'aadhar': _errors['aadhar'] = ValidationService.validateAadhar(value); break;
+        case 'mobile': _errors['mobile'] = ValidationService.validateMobile(value); break;
+        case 'income': _errors['income'] = ValidationService.validateIncome(value); break;
+        case 'deathDate': _errors['deathDate'] = ValidationService.validateDeathDate(value); break;
+        case 'deathReason': _errors['deathReason'] = ValidationService.validateRemarks(value); break; // Reusing remarks validator for length
+        case 'remarks': _errors['remarks'] = ValidationService.validateRemarks(value); break;
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+
+    _nameCtrl.addListener(() => _validateField('name', _nameCtrl.text));
+    _memnoCtrl.addListener(() => _validateField('memno', _memnoCtrl.text));
+    _dobCtrl.addListener(() => _validateField('dob', _dobCtrl.text));
+    _ageCtrl.addListener(() => _validateField('age', _ageCtrl.text));
+    _aadharCtrl.addListener(() => _validateField('aadhar', _aadharCtrl.text));
+    _mobileCtrl.addListener(() => _validateField('mobile', _mobileCtrl.text));
+    _deathDateCtrl.addListener(() => _validateField('deathDate', _deathDateCtrl.text));
+    _deathReasonCtrl.addListener(() => _validateField('deathReason', _deathReasonCtrl.text));
+    _remarksCtrl.addListener(() => _validateField('remarks', _remarksCtrl.text));
+
     if (widget.existing != null) {
       final m = widget.existing!;
       _nameCtrl.text = m.name;
@@ -145,12 +176,34 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
     } catch (_) {}
   }
 
+  Future<void> _pickDate(TextEditingController ctrl, {ValueChanged<String>? onDateSelected}) async {
+    final d = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+    if (d != null) {
+      final dateStr = d.toIso8601String().split('T')[0];
+      setState(() {
+        ctrl.text = dateStr;
+        if (onDateSelected != null) onDateSelected(dateStr);
+      });
+    }
+  }
+
   void _save() {
-    if (_nameCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Member name is required'),
-        backgroundColor: AppTheme.rose,
-      ));
+    _validateField('name', _nameCtrl.text);
+    _validateField('dob', _dobCtrl.text);
+    _validateField('age', _ageCtrl.text);
+    _validateField('aadhar', _aadharCtrl.text);
+    _validateField('mobile', _mobileCtrl.text);
+    _validateField('deathDate', _deathDateCtrl.text);
+    _validateField('deathReason', _deathReasonCtrl.text);
+    _validateField('remarks', _remarksCtrl.text);
+
+    if (_errors.values.any((e) => e != null)) {
+      showToast(context, 'Please fix the errors before saving', isError: true);
       return;
     }
 
@@ -224,8 +277,13 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
           children: [
             // Basic Info
             _sectionHeader('👤 Basic Information'),
+<<<<<<< HEAD
             _txt('Name *', _nameCtrl, 'Full name'),
             _drop('Member No.', List.generate(20, (i) => (i + 1).toString()), _memno, (v) => setState(() => _memno = v), hint: '— Select —'),
+=======
+            _txt('Name *', _nameCtrl, 'Full name', errorText: _errors['name']),
+            _txt('Member No.', _memnoCtrl, 'e.g. 001', errorText: _errors['memno']),
+>>>>>>> origin
             _drop('Relationship', [
               'Head of Family',
               'Wife',
@@ -248,9 +306,10 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
             ], _relationship, (v) => setState(() => _relationship = v), hint: '— Select —'),
             if (_relationship == 'Others') _txt('Specify Relationship', _relOtherCtrl, 'Specify'),
 
-            _txt('Date of Birth', _dobCtrl, 'YYYY-MM-DD', isDate: true, onDateSelected: (v) => _calculateAge(v)),
-            _txt('Age', _ageCtrl, 'Age in years', keyboardType: TextInputType.number),
+            _txt('Date of Birth', _dobCtrl, 'YYYY-MM-DD', isDate: true, onDateSelected: (v) => _calculateAge(v), errorText: _errors['dob']),
+            _txt('Age', _ageCtrl, 'Age in years', keyboardType: TextInputType.number, errorText: _errors['age']),
             _chip('Gender', ['Male', 'Female', 'Other'], _gender, (v) => setState(() => _gender = v)),
+<<<<<<< HEAD
             _txt('Aadhar No.', _aadharCtrl, '12-digit number',
               keyboardType: TextInputType.number,
               maxLength: 12,
@@ -266,6 +325,10 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                 return null;
               },
             ),
+=======
+            _txt('Aadhar No.', _aadharCtrl, '12-digit number', keyboardType: TextInputType.number, errorText: _errors['aadhar']),
+            _txt('Mobile No.', _mobileCtrl, '10-digit number', keyboardType: TextInputType.phone, errorText: _errors['mobile']),
+>>>>>>> origin
             _chip('Blood Group', ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'],
                 _blood, (v) => setState(() => _blood = v)),
             _chip('Marital Status', ['Unmarried', 'Married', 'Widowed', 'Divorced', 'Separated'],
@@ -398,9 +461,9 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
 
             const SizedBox(height: 16),
             _sectionHeader('📝 Remarks'),
-            _txt('Death Date (if applicable)', _deathDateCtrl, 'YYYY-MM-DD', isDate: true),
-            _txt('Death Reason', _deathReasonCtrl, 'Cause of death'),
-            _txt('Remarks', _remarksCtrl, 'Additional notes'),
+            _txt('Death Date (if applicable)', _deathDateCtrl, 'YYYY-MM-DD', isDate: true, errorText: _errors['deathDate']),
+            _txt('Death Reason', _deathReasonCtrl, 'Cause of death', errorText: _errors['deathReason']),
+            _txt('Remarks', _remarksCtrl, 'Additional notes', errorText: _errors['remarks']),
 
             const SizedBox(height: 24),
             ElevatedButton(
@@ -421,7 +484,11 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
   );
 
   Widget _txt(String label, TextEditingController ctrl, String hint,
+<<<<<<< HEAD
       {TextInputType? keyboardType, bool isDate = false, ValueChanged<String>? onDateSelected, int? maxLength, List<TextInputFormatter>? inputFormatters, String? Function(String?)? validator}) {
+=======
+      {TextInputType? keyboardType, bool isDate = false, ValueChanged<String>? onDateSelected, String? errorText}) {
+>>>>>>> origin
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Column(
@@ -432,6 +499,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
             controller: ctrl,
             keyboardType: keyboardType,
             readOnly: isDate,
+<<<<<<< HEAD
             maxLength: maxLength,
             inputFormatters: inputFormatters,
             autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -453,6 +521,36 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
               hintText: hint,
               suffixIcon: isDate ? const Icon(Icons.calendar_today, size: 18) : null,
               counterText: "",
+=======
+            onTap: isDate ? () => _pickDate(ctrl, onDateSelected: onDateSelected) : null,
+            decoration: InputDecoration(
+              hintText: hint,
+              suffixIcon: isDate
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (ctrl.text.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () {
+                            setState(() {
+                              ctrl.clear();
+                              if (onDateSelected != null) onDateSelected('');
+                            });
+                          },
+                        ),
+                      IconButton(
+                        icon: const Icon(Icons.calendar_today, size: 18),
+                        onPressed: () => _pickDate(ctrl, onDateSelected: onDateSelected),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                  )
+                : null,
+              errorText: errorText,
+              enabledBorder: errorText != null ? const OutlineInputBorder(borderSide: BorderSide(color: AppTheme.rose, width: 1)) : null,
+              focusedBorder: errorText != null ? const OutlineInputBorder(borderSide: BorderSide(color: AppTheme.rose, width: 2)) : null,
+>>>>>>> origin
             ),
           ),
         ],

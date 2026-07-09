@@ -10,10 +10,248 @@ class SmartValidationResult {
 }
 
 class ValidationService {
+  // --- Common Regex ---
+  static final RegExp _nameRegex = RegExp(r'^[a-zA-Z\s]+$');
+  static final RegExp _numericRegex = RegExp(r'^[0-9]+$');
+  static final RegExp _alphanumericRegex = RegExp(r'^[a-zA-Z0-9]+$');
+
+  // --- Survey Fields ---
+
+  static String? validateSurveyId(String? value) {
+    if (value == null || value.trim().isEmpty) return null; // Auto-generated usually
+    if (!RegExp(r'^RPM-[0-9]{6}$').hasMatch(value.trim())) {
+      return 'Format: RPM-000001';
+    }
+    return null;
+  }
+
+  static String? validateWard(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'Ward is required';
+    if (v.length > 100) return 'Maximum 100 characters';
+    return null;
+  }
+
+  static String? validateWardId(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    final n = int.tryParse(value.trim());
+    if (n == null || n < 1 || n > 42) return 'Allowed: 1–42';
+    return null;
+  }
+
+  static String? validateDoor(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'Door No. is required';
+    if (v.length > 20) return 'Maximum 20 characters';
+    if (v.isNotEmpty && !_alphanumericRegex.hasMatch(v)) return 'Letters and numbers only';
+    return null;
+  }
+
+  static String? validateStreet(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'Street name is required';
+    if (v.length > 150) return 'Maximum 150 characters';
+    return null;
+  }
+
+  static String? validateFamNo(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return null;
+    if (v.length > 30) return 'Maximum 30 characters';
+    if (!_alphanumericRegex.hasMatch(v)) return 'Letters and numbers only';
+    return null;
+  }
+
+  static String? validateHead(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'Family Head name is required';
+    if (v.length < 2) return 'Minimum 2 characters';
+    if (v.length > 100) return 'Maximum 100 characters';
+    if (!_nameRegex.hasMatch(v)) return 'Only alphabets and spaces allowed';
+    return null;
+  }
+
+  static String? validateRation(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return null;
+    if (v.length > 30) return 'Maximum 30 characters';
+    if (!_alphanumericRegex.hasMatch(v)) return 'Letters and numbers only';
+    return null;
+  }
+
+  static String? validateAbha(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return null;
+    if (!_numericRegex.hasMatch(v) || v.length != 14) {
+      return 'ABHA ID must contain exactly 14 digits.';
+    }
+    return null;
+  }
+
+  static String? validatePmja(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return null;
+    if (v.length > 30) return 'Maximum 30 characters';
+    if (!_alphanumericRegex.hasMatch(v)) return 'Letters and numbers only';
+    return null;
+  }
+
+  static String? validatePhr(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return null;
+    if (v.length > 30) return 'Maximum 30 characters';
+    if (!_alphanumericRegex.hasMatch(v)) return 'Letters and numbers only';
+    return null;
+  }
+
+  static String? validateSmartcard(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return null;
+    if (v.length > 30) return 'Maximum 30 characters';
+    if (!_alphanumericRegex.hasMatch(v)) return 'Letters and numbers only';
+    return null;
+  }
+
+  static String? validateCollector(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return null;
+    if (!_nameRegex.hasMatch(v)) return 'Only alphabets and spaces';
+    return null;
+  }
+
+  // --- Family Member Fields ---
+
+  static String? validateMemNo(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return null;
+    if (!_alphanumericRegex.hasMatch(v)) return 'Letters and numbers only';
+    return null;
+  }
+
+  static String? validateMemName(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'Name is required';
+    if (!_nameRegex.hasMatch(v)) return 'Only alphabets and spaces';
+    return null;
+  }
+
+  static String? validateDob(String? value) {
+    if (value == null || value.isEmpty) return 'Date of Birth is required';
+    return _validatePastDate(value);
+  }
+
+  static String? _validatePastDate(String? value) {
+    if (value == null || value.isEmpty) return null;
+    try {
+      final date = DateTime.parse(value);
+      if (date.isAfter(DateTime.now())) return 'Cannot be future date';
+    } catch (_) {
+      return 'Invalid date format';
+    }
+    return null;
+  }
+
+  static String? validateDeathDate(String? value) {
+    return _validatePastDate(value);
+  }
+
+  static String? validateAge(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'Age is required';
+    final n = int.tryParse(v);
+    if (n == null || n < 0 || n > 120) return 'Range: 0–120';
+    return null;
+  }
+
+  static String? validateAadhar(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return null;
+    final clean = v.replaceAll(' ', '');
+    if (!_numericRegex.hasMatch(clean) || clean.length != 12) {
+      return 'Exactly 12 digits required';
+    }
+    return null;
+  }
+
+  static String? validateMobile(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'Mobile number is required';
+    if (!_numericRegex.hasMatch(v)) return 'Digits only';
+    if (v.length > 10) return 'Phone number should not exceed 10 digits.';
+    if (v.length < 10) return 'Phone number must contain exactly 10 digits.';
+    return null;
+  }
+
+  static String? validateIncome(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isNotEmpty && !_numericRegex.hasMatch(v)) return 'Numeric only';
+    return null;
+  }
+
+  static String? validateRemarks(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.length > 500) return 'Maximum 500 characters';
+    return null;
+  }
+
+  // --- Eligible Couple Fields ---
+
+  static String? validateAlphanumeric(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return null;
+    if (!_alphanumericRegex.hasMatch(v)) return 'Letters and numbers only';
+    return null;
+  }
+
+  static String? validateBankAc(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return null;
+    if (!_numericRegex.hasMatch(v)) return 'Numeric only';
+    if (v.length < 9 || v.length > 18) return '9–18 digits';
+    return null;
+  }
+
+  static String? validateHusbandAgeMarriage(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return null;
+    final n = int.tryParse(v);
+    if (n == null || n < 18 || n > 100) return 'Range 18–100';
+    return null;
+  }
+
+  static String? validateWifeAgeMarriage(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return null;
+    final n = int.tryParse(v);
+    if (n == null || n < 18 || n > 100) return 'Range 18–100';
+    return null;
+  }
+
+  static String? validateMotherCurrentAge(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return null;
+    final n = int.tryParse(v);
+    if (n == null || n < 15 || n > 100) return 'Range 15–100';
+    return null;
+  }
+
+  // --- Complaint Fields ---
+  static String? validateIssueType(String? value) {
+    if (value == null || value.isEmpty) return 'Issue type is required';
+    return null;
+  }
+
+  // --- Correction Request Fields ---
+  static String? validateFieldName(String? value) {
+    if (value == null || value.isEmpty) return 'Field name is required';
+    return null;
+  }
+
   static SmartValidationResult validate(Survey survey) {
     final List<String> errors = [];
     final List<String> warnings = [];
 
+<<<<<<< HEAD
     // 1. Basic Mandatory Fields
     if (survey.ward.isEmpty) errors.add('❌ Please select a ward.');
     if (survey.head.isEmpty) errors.add('❌ Family Head Name cannot be empty.');
@@ -26,30 +264,32 @@ class ValidationService {
     }
     if (survey.door.isEmpty) errors.add('❌ Door No. is required.');
     if (survey.street.isEmpty) errors.add('❌ Street Name is required.');
+=======
+    // Use the individual validators for full survey validation
+    String? err;
+    if ((err = validateWard(survey.ward)) != null) errors.add('Ward: $err');
+    if ((err = validateHead(survey.head)) != null) errors.add('Family Head: $err');
+    if ((err = validateDoor(survey.door)) != null) errors.add('Door: $err');
+    if ((err = validateStreet(survey.street)) != null) errors.add('Street: $err');
+    if ((err = validateMobile(survey.phone)) != null) errors.add('Phone: $err');
+    if ((err = validateAbha(survey.abha)) != null) errors.add('ABHA: $err');
+>>>>>>> origin
 
-    // 2. Members Validation
+    // Members Validation
     final Set<String> aadhaarSet = {};
     for (var m in survey.members) {
-      // Aadhaar number not 12 digits
+      if ((err = validateMemName(m.name)) != null) errors.add('Member ${m.name}: Name $err');
+      if ((err = validateAadhar(m.aadhar)) != null) errors.add('Member ${m.name}: Aadhaar $err');
+      if ((err = validateMobile(m.mobile)) != null) errors.add('Member ${m.name}: Mobile $err');
+      if ((err = validateAge(m.age)) != null) errors.add('Member ${m.name}: Age $err');
+      if ((err = validateDob(m.dob)) != null) errors.add('Member ${m.name}: DOB $err');
+
       if (m.aadhar.isNotEmpty) {
         final cleanAadhaar = m.aadhar.replaceAll(' ', '');
-        if (cleanAadhaar.length != 12) {
-          errors.add('❌ Member ${m.name}: Please enter a valid 12-digit Aadhaar number.');
-        }
-        // Duplicate Aadhaar in the same survey
         if (aadhaarSet.contains(cleanAadhaar)) {
           warnings.add('⚠ This Aadhaar number (${m.aadhar}) already exists in another member of this survey.');
         }
         aadhaarSet.add(cleanAadhaar);
-      }
-
-      // Mobile number not starting with 6–9
-      if (m.mobile.isNotEmpty) {
-        if (m.mobile.length != 10) {
-          errors.add('❌ Member ${m.name}: Mobile number must contain exactly 10 digits.');
-        } else if (!RegExp(r'^[6-9]').hasMatch(m.mobile)) {
-          errors.add('❌ Member ${m.name}: Mobile number must start with 6, 7, 8, or 9.');
-        }
       }
 
       if (m.dob.isNotEmpty && m.age.isNotEmpty) {
@@ -60,67 +300,10 @@ class ValidationService {
           if (today.month < birth.month || (today.month == birth.month && today.day < birth.day)) calcAge--;
           
           int enteredAge = int.tryParse(m.age) ?? 0;
-          
-          // Age and DOB don't match
           if ((calcAge - enteredAge).abs() > 1) {
             warnings.add('⚠ ${m.name}: Age ($enteredAge) does not match the Date of Birth. Please verify.');
           }
-
-          // Future DOB
-          if (birth.isAfter(today)) {
-            errors.add('❌ ${m.name}: Future Date of Birth is not allowed.');
-          }
-
-          // Child below 5 years -> Educational qualification check
-          if (enteredAge < 5 && m.edu.isNotEmpty) {
-            final validEdus = [
-              'No Formal Education', 
-              'Pre-School / Anganwadi', 
-              'Not Applicable',
-              'Primary (1–5)' // Allowed but warning if LKG/UKG not chosen
-            ];
-            if (!validEdus.any((e) => m.edu.contains(e))) {
-              warnings.add('⚠ ${m.name}: Educational qualification seems incorrect for the entered age (under 5).');
-            }
-          }
-
-          // Age 3 and Married -> Warning
-          if (enteredAge < 10 && m.marital == 'Married') {
-            warnings.add('⚠ ${m.name}: Age is $enteredAge but status is Married. Please verify.');
-          }
         } catch (_) {}
-      }
-
-      // Male marked as Pregnant -> Show error (In Eligible Couple logic)
-
-      // Death date before birth date
-      if (m.deathDate.isNotEmpty && m.dob.isNotEmpty) {
-        try {
-          if (DateTime.parse(m.deathDate).isBefore(DateTime.parse(m.dob))) {
-            errors.add('❌ ${m.name}: Death date cannot be before birth date.');
-          }
-        } catch (_) {}
-      }
-    }
-
-    // 3. Eligible Couples logic
-    for (var c in survey.couples) {
-      final husband = survey.members.where((m) => m.name == c.husbandName).firstOrNull;
-      final wife = survey.members.where((m) => m.name == c.wifeName).firstOrNull;
-
-      if (husband != null && husband.gender == 'Female') {
-        warnings.add('⚠ Husband (${husband.name}) is marked as Female. Please verify.');
-      }
-      if (wife != null && wife.gender == 'Male') {
-        warnings.add('⚠ Wife (${wife.name}) is marked as Male. Please verify.');
-      }
-      
-      // Eligible Couple with unmarried status
-      if (husband != null && husband.marital == 'Unmarried') {
-        warnings.add('⚠ ${husband.name} is in an Eligible Couple record but marked as Unmarried.');
-      }
-      if (wife != null && wife.marital == 'Unmarried') {
-        warnings.add('⚠ ${wife.name} is in an Eligible Couple record but marked as Unmarried.');
       }
     }
 
