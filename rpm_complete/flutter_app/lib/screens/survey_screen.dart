@@ -1,5 +1,5 @@
 // screens/survey_screen.dart
-// 4-step family survey form - Directly accessible local mode
+// 5-step family survey form - Directly accessible local mode
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -58,6 +58,14 @@ class _SurveyScreenState extends State<SurveyScreen> {
   // ── Step 2: Couples ──
   final List<EligibleCouple> _couples = [];
 
+  // ── Step 3: Waste Management ──
+  final _wasteSizeCtrl = TextEditingController();
+  String? _wasteAmount;
+  List<String> _wasteTypes = [];
+  List<String> _wasteDisposal = [];
+  String? _wasteSegregation;
+  String? _wasteFrequency;
+
   void _validateField(String field, String value) {
     setState(() {
       switch (field) {
@@ -93,7 +101,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
     _headCtrl.addListener(() => _validateField('head', _headCtrl.text));
     _phoneCtrl.addListener(() => _validateField('phone', _phoneCtrl.text));
 
-    final ctrls = [_streetCtrl, _doorCtrl, _famnoCtrl, _abhaCtrl, _pmjaCtrl, _phrCtrl, _rationCtrl, _smartcardCtrl, _headCtrl, _phoneCtrl];
+    final ctrls = [_streetCtrl, _doorCtrl, _famnoCtrl, _abhaCtrl, _pmjaCtrl, _phrCtrl, _rationCtrl, _smartcardCtrl, _headCtrl, _phoneCtrl, _wasteSizeCtrl];
     for (var c in ctrls) {
       c.addListener(_saveDraft);
     }
@@ -119,6 +127,14 @@ class _SurveyScreenState extends State<SurveyScreen> {
       _toilet = s.toilet.isEmpty ? null : s.toilet;
       _members.addAll(s.members);
       _couples.addAll(s.couples);
+
+      // Waste Management
+      _wasteSizeCtrl.text = s.wasteSize;
+      _wasteAmount = s.wasteAmount.isEmpty ? null : s.wasteAmount;
+      _wasteTypes = s.wasteTypes.isEmpty ? [] : s.wasteTypes.split(', ');
+      _wasteDisposal = s.wasteDisposal.isEmpty ? [] : s.wasteDisposal.split(', ');
+      _wasteSegregation = s.wasteSegregation.isEmpty ? null : s.wasteSegregation;
+      _wasteFrequency = s.wasteFrequency.isEmpty ? null : s.wasteFrequency;
     }
   }
 
@@ -153,6 +169,12 @@ class _SurveyScreenState extends State<SurveyScreen> {
       toilet: _toilet ?? '',
       members: _members,
       couples: _couples,
+      wasteSize: _wasteSizeCtrl.text.trim(),
+      wasteAmount: _wasteAmount ?? '',
+      wasteTypes: _wasteTypes.join(', '),
+      wasteDisposal: _wasteDisposal.join(', '),
+      wasteSegregation: _wasteSegregation ?? '',
+      wasteFrequency: _wasteFrequency ?? '',
     );
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('local_survey_draft', json.encode(survey.toJson()));
@@ -183,6 +205,14 @@ class _SurveyScreenState extends State<SurveyScreen> {
         _toilet = s.toilet.isEmpty ? null : s.toilet;
         _members.clear(); _members.addAll(s.members);
         _couples.clear(); _couples.addAll(s.couples);
+
+        _wasteSizeCtrl.text = s.wasteSize;
+        _wasteAmount = s.wasteAmount.isEmpty ? null : s.wasteAmount;
+        _wasteTypes = s.wasteTypes.isEmpty ? [] : s.wasteTypes.split(', ');
+        _wasteDisposal = s.wasteDisposal.isEmpty ? [] : s.wasteDisposal.split(', ');
+        _wasteSegregation = s.wasteSegregation.isEmpty ? null : s.wasteSegregation;
+        _wasteFrequency = s.wasteFrequency.isEmpty ? null : s.wasteFrequency;
+
         _draftExists = false;
       });
       showToast(context, 'Draft restored');
@@ -221,6 +251,14 @@ class _SurveyScreenState extends State<SurveyScreen> {
       _bpl = null; _caste = null; _insurance = null;
       _housing = null; _water = null; _toilet = null;
       _members.clear(); _couples.clear();
+
+      _wasteSizeCtrl.clear();
+      _wasteAmount = null;
+      _wasteTypes.clear();
+      _wasteDisposal.clear();
+      _wasteSegregation = null;
+      _wasteFrequency = null;
+
       _errors.clear();
     });
   }
@@ -239,8 +277,22 @@ class _SurveyScreenState extends State<SurveyScreen> {
     return true;
   }
 
+  bool _validateWaste() {
+    if (_wasteSizeCtrl.text.trim().isEmpty) { showToast(context, 'Household size is required', isError: true); return false; }
+    if (_wasteAmount == null) { showToast(context, 'Waste generation per day is required', isError: true); return false; }
+    if (_wasteTypes.isEmpty) { showToast(context, 'Select at least one waste type', isError: true); return false; }
+    if (_wasteDisposal.isEmpty) { showToast(context, 'Select at least one disposal method', isError: true); return false; }
+    if (_wasteSegregation == null) { showToast(context, 'Waste segregation practice is required', isError: true); return false; }
+    if (_wasteFrequency == null) { showToast(context, 'Collection frequency is required', isError: true); return false; }
+    return true;
+  }
+
   Future<void> _submitSurvey({bool hold = false}) async {
     if (!hold && !_validateStep0()) return;
+    if (!hold && !_validateWaste()) {
+      setState(() => _step = 3);
+      return;
+    }
 
     if (_members.isEmpty && !hold) {
       final confirmed = await showDialog<bool>(
@@ -285,6 +337,12 @@ class _SurveyScreenState extends State<SurveyScreen> {
       date: dateStr,
       members: _members,
       couples: _couples,
+      wasteSize: _wasteSizeCtrl.text.trim(),
+      wasteAmount: _wasteAmount ?? '',
+      wasteTypes: _wasteTypes.join(', '),
+      wasteDisposal: _wasteDisposal.join(', '),
+      wasteSegregation: _wasteSegregation ?? '',
+      wasteFrequency: _wasteFrequency ?? '',
     );
 
     try {
@@ -332,14 +390,24 @@ class _SurveyScreenState extends State<SurveyScreen> {
             if (_draftExists) _DraftBanner(onRestore: _restoreDraft, onDiscard: _discardDraft),
             StepIndicator(
               currentStep: _step,
-              totalSteps: 4,
-              labels: const ['🏠 Family', '👥 Members', '💑 Couples', '✅ Review'],
-              onTap: (i) { if (i > _step && _step == 0 && !_validateStep0()) return; setState(() => _step = i); },
+              totalSteps: 5,
+              labels: const ['🏠 Family', '👥 Members', '💑 Couples', '♻️ Waste', '✅ Review'],
+              onTap: (i) {
+                if (i > _step && _step == 0 && !_validateStep0()) return;
+                if (i > _step && _step == 3 && !_validateWaste()) return;
+                setState(() => _step = i);
+              },
             ),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
-                child: [ _Step0Family(this), _Step1Members(this), _Step2Couples(this), _Step3Review(this) ][_step],
+                child: [
+                  _Step0Family(this),
+                  _Step1Members(this),
+                  _Step2Couples(this),
+                  _Step3Waste(this),
+                  _Step4Review(this)
+                ][_step],
               ),
             ),
           ],
@@ -482,7 +550,7 @@ class _Step2Couples extends StatelessWidget {
           children: [
             OutlinedButton(onPressed: () => s.setState(() => s._step = 1), child: const Text('← Back')),
             const SizedBox(width: 8),
-            Expanded(child: ElevatedButton(onPressed: () => s.setState(() => s._step = 3), child: const Text('Review & Finish →', style: TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))),
+            Expanded(child: ElevatedButton(onPressed: () => s.setState(() => s._step = 3), child: const Text('Next: Waste →', style: TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))),
           ],
         ),
         const SizedBox(height: 24),
@@ -495,20 +563,112 @@ class _Step2Couples extends StatelessWidget {
   }
 }
 
-// ════ STEP 3: REVIEW ════
-class _Step3Review extends StatelessWidget {
+// ════ STEP 3: WASTE MANAGEMENT ════
+class _Step3Waste extends StatelessWidget {
   final _SurveyScreenState s;
-  const _Step3Review(this.s);
+  const _Step3Waste(this.s);
+
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Row(children: [Text('✅', style: TextStyle(fontSize: 22)), SizedBox(width: 10), Expanded(child: Text('Review Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)))] ), const Divider(height: 24), _ReviewRow('Ward', s._ward ?? '-'), _ReviewRow('Door No.', s._doorCtrl.text), _ReviewRow('Street', s._streetCtrl.text), _ReviewRow('Family Head', s._headCtrl.text), _ReviewRow('BPL/APL', s._bpl ?? '-'), _ReviewRow('Caste', s._caste ?? '-'), const Divider(height: 24), _ReviewRow('Family Members', '${s._members.length}'), _ReviewRow('Eligible Couples', '${s._couples.length}')] ))),
+        SectionCard(
+          icon: const SectionIcon(emoji: '♻️', color: Color(0xFFF0FDF4)),
+          title: 'Solid Waste Management',
+          subtitle: 'Mandatory sections for waste collection',
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _TxtField('How many people currently live in your household? *', s._wasteSizeCtrl, 'e.g. 4', required: true, keyboardType: TextInputType.number),
+
+              _DropField('Approximate waste generated per day? *',
+                ['Less than 1 kg', '1–2 kg', '2–5 kg', 'More than 5 kg'],
+                s._wasteAmount, (v) => s.setState(() { s._wasteAmount = v; s._saveDraft(); })),
+
+              const SizedBox(height: 12),
+              FieldLabel(text: 'Types of waste generated? (Select all that apply) *', required: true),
+              MultiChipGroup(
+                options: const ['Food/Biodegradable', 'Plastic', 'Paper/Cardboard', 'Glass', 'Metal', 'E-waste', 'Sanitary waste', 'Garden waste', 'Textile'],
+                values: s._wasteTypes,
+                onChanged: (v) => s.setState(() { s._wasteTypes = v; s._saveDraft(); })),
+
+              const SizedBox(height: 16),
+              FieldLabel(text: 'How do you dispose of your household waste? *', required: true),
+              MultiChipGroup(
+                options: const ['Municipal collection', 'Community bin', 'Private collector', 'Composting', 'Burning', 'Dumping in open areas', 'Recycling/Scrap dealer', 'Other'],
+                values: s._wasteDisposal,
+                onChanged: (v) => s.setState(() { s._wasteDisposal = v; s._saveDraft(); })),
+
+              const SizedBox(height: 16),
+              _ChipRow('Do you segregate waste before disposal? *',
+                ['Always', 'Sometimes', 'Never'],
+                s._wasteSegregation, (v) => s.setState(() { s._wasteSegregation = v; s._saveDraft(); })),
+
+              const SizedBox(height: 12),
+              _DropField('How often is waste collected? *',
+                ['Daily', 'Alternate days', 'Twice a week', 'Weekly', 'Irregularly'],
+                s._wasteFrequency, (v) => s.setState(() { s._wasteFrequency = v; s._saveDraft(); })),
+            ],
+          ),
+        ),
         const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             OutlinedButton(onPressed: () => s.setState(() => s._step = 2), child: const Text('← Back')),
+            const SizedBox(width: 8),
+            Expanded(child: ElevatedButton(onPressed: () { if (s._validateWaste()) s.setState(() => s._step = 4); }, child: const Text('Review & Finish →', style: TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis))),
+          ],
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+// ════ STEP 4: REVIEW ════
+class _Step4Review extends StatelessWidget {
+  final _SurveyScreenState s;
+  const _Step4Review(this.s);
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(children: [Text('✅', style: TextStyle(fontSize: 22)), SizedBox(width: 10), Expanded(child: Text('Review Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)))] ),
+                const Divider(height: 24),
+                _ReviewRow('Ward', s._ward ?? '-'),
+                _ReviewRow('Door No.', s._doorCtrl.text),
+                _ReviewRow('Street', s._streetCtrl.text),
+                _ReviewRow('Family Head', s._headCtrl.text),
+                _ReviewRow('BPL/APL', s._bpl ?? '-'),
+                _ReviewRow('Caste', s._caste ?? '-'),
+                const Divider(height: 24),
+                _ReviewRow('Family Members', '${s._members.length}'),
+                _ReviewRow('Eligible Couples', '${s._couples.length}'),
+                const Divider(height: 24),
+                const Text('Waste Management', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.teal)),
+                const SizedBox(height: 8),
+                _ReviewRow('Household Size', s._wasteSizeCtrl.text),
+                _ReviewRow('Waste/Day', s._wasteAmount ?? '-'),
+                _ReviewRow('Types', s._wasteTypes.join(', ')),
+                _ReviewRow('Disposal', s._wasteDisposal.join(', ')),
+                _ReviewRow('Segregation', s._wasteSegregation ?? '-'),
+                _ReviewRow('Frequency', s._wasteFrequency ?? '-'),
+              ]
+            )
+          )
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            OutlinedButton(onPressed: () => s.setState(() => s._step = 3), child: const Text('← Back')),
             const SizedBox(width: 8),
             Expanded(
               child: Wrap(

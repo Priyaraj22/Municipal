@@ -262,6 +262,16 @@ class LocalStorageService {
               builder.element('Status', nest: s.status);
             });
 
+            // Waste Management
+            builder.element('WasteManagement', nest: () {
+              builder.element('HouseholdSize', nest: s.wasteSize);
+              builder.element('DailyWasteGeneration', nest: s.wasteAmount);
+              builder.element('WasteTypes', nest: s.wasteTypes);
+              builder.element('DisposalMethod', nest: s.wasteDisposal);
+              builder.element('SegregationPractice', nest: s.wasteSegregation);
+              builder.element('CollectionFrequency', nest: s.wasteFrequency);
+            });
+
             // Family Members
             builder.element('FamilyMembers', nest: () {
               for (var m in s.members) {
