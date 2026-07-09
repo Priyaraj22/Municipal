@@ -7,7 +7,6 @@ import '../theme/app_theme.dart';
 import 'survey_screen.dart';
 import 'records_screen.dart';
 import 'login_screen.dart';
-import '../widgets/ai_assistant.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -49,7 +48,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: _pages[_tabIndex],
-      floatingActionButton: const AiAssistantFab(),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tabIndex,
         onDestinationSelected: (i) => setState(() => _tabIndex = i),

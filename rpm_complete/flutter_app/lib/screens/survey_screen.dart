@@ -14,6 +14,7 @@ import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 import 'member_form.dart';
 import 'couple_form.dart';
+import 'success_screen.dart';
 
 class SurveyScreen extends StatefulWidget {
   final Survey? existing;
@@ -299,22 +300,35 @@ class _SurveyScreenState extends State<SurveyScreen> {
         survey.id = widget.existing!.id;
         await LocalStorageService.saveSurvey(survey);
         if (mounted) {
-          String msg;
           if (hold) {
-            msg = '📥 Draft updated!';
+            showToast(context, '📥 Draft updated!');
+            Navigator.pop(context, true);
           } else {
-            msg = widget.existing!.status == 'Hold' ? '✅ Survey finalized and submitted!' : '✅ Survey updated!';
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const SuccessScreen(message: 'Survey Finalized and Submitted!'),
+              ),
+            );
           }
-          showToast(context, msg);
-          Navigator.pop(context, true);
         }
       } else {
         await LocalStorageService.saveSurvey(survey);
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('local_survey_draft');
         if (mounted) {
-          showToast(context, hold ? '📥 Draft saved!' : '✅ Survey saved!');
-          _clearForm();
+          if (hold) {
+            showToast(context, '📥 Draft saved!');
+            _clearForm();
+          } else {
+            _clearForm();
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const SuccessScreen(message: 'Successfully Submitted!'),
+              ),
+            );
+          }
         }
       }
     } catch (e) {
