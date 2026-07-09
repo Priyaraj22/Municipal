@@ -195,15 +195,21 @@ class _SurveyScreenState extends State<SurveyScreen> {
   }
 
   Future<void> _loadWards() async {
+    // 1. Load the 42 standard wards immediately for offline speed
+    setState(() {
+      _wardNames = List.generate(42, (i) => 'Ward ${i + 1}');
+    });
+
+    // 2. Then try to fetch updated names from the API in the background
     try {
       final wards = await ApiService.getWards();
-      setState(() {
-        _wardNames = wards.map((w) => w.wardName).toList();
-      });
+      if (wards.isNotEmpty && mounted) {
+        setState(() {
+          _wardNames = wards.map((w) => w.wardName).toList();
+        });
+      }
     } catch (_) {
-      setState(() {
-        _wardNames = List.generate(42, (i) => 'Ward ${i + 1}');
-      });
+      // Stay with the 42 wards if API fails
     }
   }
 
@@ -292,12 +298,24 @@ class _SurveyScreenState extends State<SurveyScreen> {
       if (widget.existing != null && widget.existing!.id != null) {
         survey.id = widget.existing!.id;
         await LocalStorageService.saveSurvey(survey);
-        if (mounted) { showToast(context, hold ? '📥 Draft saved!' : '✅ Survey updated!'); Navigator.pop(context, true); }
+        if (mounted) {
+          String msg;
+          if (hold) {
+            msg = '📥 Draft updated!';
+          } else {
+            msg = widget.existing!.status == 'Hold' ? '✅ Survey finalized and submitted!' : '✅ Survey updated!';
+          }
+          showToast(context, msg);
+          Navigator.pop(context, true);
+        }
       } else {
         await LocalStorageService.saveSurvey(survey);
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('local_survey_draft');
-        if (mounted) { showToast(context, hold ? '📥 Draft saved!' : '✅ Survey saved!'); _clearForm(); }
+        if (mounted) {
+          showToast(context, hold ? '📥 Draft saved!' : '✅ Survey saved!');
+          _clearForm();
+        }
       }
     } catch (e) {
       if (mounted) showToast(context, e.toString(), isError: true);
@@ -353,7 +371,7 @@ class _Step0Family extends StatelessWidget {
               _DropField('Ward No. *', s._wardNames, s._ward, (v) {
                 s.setState(() { s._ward = v; s._saveDraft(); });
                 s._validateField('ward', v ?? '');
-              }, hint: '— Select —', errorText: s._errors['ward']),
+              }, hint: '— Select Assigned Ward —', errorText: s._errors['ward']),
               _TxtField('Street Name *', s._streetCtrl, 'Street name', errorText: s._errors['street']),
               _TxtField('Door No. *', s._doorCtrl, 'e.g. 12A', errorText: s._errors['door']),
               const SizedBox(height: 12),

@@ -101,10 +101,61 @@ class LocalStorageService {
 
     final file = await _getFile();
     await file.writeAsString(json.encode(surveys.map((s) => s.toJson()).toList()));
+
+    // AUTOMATIC EXPORT: If submitted, update the JSON file in the public folder immediately
+    if (survey.status == 'Submitted') {
+      try {
+        await autoExportSurveyJSON(survey);
+      } catch (_) {
+        // Fail silently during auto-save
+      }
+    }
+  }
+
+  /// Automatically exports a single survey as a JSON file named: survey_ward_no_name_of_family_head
+  static Future<void> autoExportSurveyJSON(Survey survey) async {
+    final ok = await _requestPermission();
+    if (!ok) return;
+
+    final directory = await _getExportDirectory();
+    
+    // Extract numeric ward part if possible, otherwise use clean ward name
+    // e.g. "Ward 12" -> "12"
+    final wardNum = survey.ward.replaceAll(RegExp(r'[^0-9]'), '');
+    final wardLabel = wardNum.isNotEmpty ? wardNum : survey.ward.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+    
+    // Clean head name for filename
+    final headClean = survey.head.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+    
+    // Format: survey_[ward]_[name].json
+    final fileName = 'survey_${wardLabel}_$headClean.json';
+    
+    final filePath = '${directory.path}/$fileName';
+    final content = json.encode(survey.toJson());
+    final file = File(filePath);
+    await file.writeAsString(content, flush: true);
   }
 
   static Future<void> deleteSurvey(String id) async {
     final surveys = await getAllSurveys();
+    
+    // Find the survey to delete its public file as well
+    final index = surveys.indexWhere((s) => s.id == id);
+    if (index != -1) {
+      final survey = surveys[index];
+      try {
+        final directory = await _getExportDirectory();
+        final wardNum = survey.ward.replaceAll(RegExp(r'[^0-9]'), '');
+        final wardLabel = wardNum.isNotEmpty ? wardNum : survey.ward.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+        final headClean = survey.head.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+        final fileName = 'survey_${wardLabel}_$headClean.json';
+        final publicFile = File('${directory.path}/$fileName');
+        if (await publicFile.exists()) {
+          await publicFile.delete();
+        }
+      } catch (_) {}
+    }
+
     surveys.removeWhere((s) => s.id == id);
     final file = await _getFile();
     await file.writeAsString(json.encode(surveys.map((s) => s.toJson()).toList()));
@@ -112,7 +163,7 @@ class LocalStorageService {
 
   static Future<String> exportToExcel() async {
     final ok = await _requestPermission();
-    if (!ok) throw Exception('Storage permission required to create folder');
+    if (!ok) throw Exception('Storage permission required');
 
     final allSurveys = await getAllSurveys();
     final surveys = allSurveys.where((s) => s.status == 'Submitted').toList();
@@ -131,7 +182,7 @@ class LocalStorageService {
 
     for (var s in surveys) {
       sheetObject.appendRow([
-        xl.TextCellValue(s.surveyId ?? s.id ?? ''), xl.TextCellValue(s.ward), xl.TextCellValue(s.door),
+        xl.TextCellValue(s.id ?? ''), xl.TextCellValue(s.ward), xl.TextCellValue(s.door),
         xl.TextCellValue(s.street), xl.TextCellValue(s.head), xl.TextCellValue(s.phone),
         xl.TextCellValue(s.ration), xl.TextCellValue(s.abha), xl.TextCellValue(s.pmja),
         xl.TextCellValue(s.phr), xl.TextCellValue(s.smartcard), xl.TextCellValue(s.bpl),
@@ -140,8 +191,15 @@ class LocalStorageService {
       ]);
     }
 
-    final directory = await _getExportDirectory();
-    final filePath = '${directory.path}/Survey_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+    // Save XL to public Download folder directly (NOT in the subfolder)
+    Directory? downloadDir;
+    if (Platform.isAndroid) {
+      downloadDir = Directory('/storage/emulated/0/Download');
+    } else {
+      downloadDir = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+    }
+    
+    final filePath = '${downloadDir!.path}/Rajapalayam_Survey_Report_${DateTime.now().millisecondsSinceEpoch}.xlsx';
     final fileBytes = excel.save();
     if (fileBytes != null) {
       final file = File(filePath);
@@ -158,7 +216,6 @@ class LocalStorageService {
     final surveys = allSurveys.where((s) => s.status == 'Submitted').toList();
 
     final builder = XmlBuilder();
-<<<<<<< HEAD
     builder.processing('xml', 'version="1.0" encoding="UTF-8"');
     builder.element('RajapalayamSurveyData', nest: () {
       builder.element('ExportMetadata', nest: () {
@@ -170,7 +227,7 @@ class LocalStorageService {
         for (var s in surveys) {
           builder.element('Survey', nest: () {
             // Location & Identity
-            builder.element('SurveyID', nest: s.surveyId ?? s.id);
+            builder.element('SurveyID', nest: s.id);
             builder.element('Ward', nest: s.ward);
             builder.element('DoorNo', nest: s.door);
             builder.element('Street', nest: s.street);
@@ -314,28 +371,6 @@ class LocalStorageService {
                 });
               }
             });
-=======
-    builder.processing('xml', 'version="1.0"');
-    builder.element('Surveys', nest: () {
-      for (var s in surveys) {
-        builder.element('Survey', nest: () {
-          builder.element('ID', nest: s.surveyId ?? s.id);
-          builder.element('Ward', nest: s.ward);
-          builder.element('Head', nest: s.head);
-          builder.element('Phone', nest: s.phone);
-          builder.element('Address', nest: '${s.door}, ${s.street}');
-          builder.element('Status', nest: s.status);
-          builder.element('Surveyor', nest: s.collector);
-          builder.element('Date', nest: s.date);
-          builder.element('Members', nest: () {
-            for (var m in s.members) {
-              builder.element('Member', nest: () {
-                builder.element('Name', nest: m.name);
-                builder.element('Age', nest: m.age);
-                builder.element('Relation', nest: m.rel);
-              });
-            }
->>>>>>> 124b45c28335ed4d83f226ed8b1097e3b3dab0f8
           });
         }
       });
@@ -348,17 +383,21 @@ class LocalStorageService {
     return filePath;
   }
 
-  static Future<String> exportToJSON() async {
-    final ok = await _requestPermission();
-    if (!ok) throw Exception('Storage permission required');
+  static Future<String> exportToJSON({bool silent = false}) async {
+    if (!silent) {
+      final ok = await _requestPermission();
+      if (!ok) throw Exception('Storage permission required');
+    }
 
     final allSurveys = await getAllSurveys();
     final surveys = allSurveys.where((s) => s.status == 'Submitted').toList();
 
     final directory = await _getExportDirectory();
-    final filePath = '${directory.path}/Survey_${DateTime.now().millisecondsSinceEpoch}.json';
+    // Use a fixed name for the master backup so it stays updated
+    final filePath = '${directory.path}/Master_Survey_Records.json';
     final content = json.encode(surveys.map((s) => s.toJson()).toList());
-    await File(filePath).writeAsString(content, flush: true);
+    final file = File(filePath);
+    await file.writeAsString(content, flush: true);
     return filePath;
   }
 }
