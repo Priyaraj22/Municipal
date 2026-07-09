@@ -3,6 +3,7 @@
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/survey_models.dart';
@@ -194,7 +195,16 @@ class _SurveyScreenState extends State<SurveyScreen> {
     if (_streetCtrl.text.trim().isEmpty) { showToast(context, 'Street name is required', isError: true); return false; }
     if (_doorCtrl.text.trim().isEmpty) { showToast(context, 'Door No. is required', isError: true); return false; }
     if (_headCtrl.text.trim().isEmpty) { showToast(context, 'Family Head name is required', isError: true); return false; }
-    if (_phoneCtrl.text.trim().isEmpty) { showToast(context, 'Phone Number is required', isError: true); return false; }
+
+    final phone = _phoneCtrl.text.trim();
+    if (phone.isEmpty) {
+      showToast(context, 'Phone Number is required', isError: true);
+      return false;
+    }
+    if (phone.length != 10 || !RegExp(r'^[6-9]').hasMatch(phone)) {
+      showToast(context, 'Invalid Phone Number (Must be 10 digits starting with 6-9)', isError: true);
+      return false;
+    }
     return true;
   }
 
@@ -304,9 +314,9 @@ class _Step0Family extends StatelessWidget {
             children: [
               _DropField('Ward No. *', s._wardNames, s._ward, (v) => s.setState(() { s._ward = v; s._saveDraft(); }), hint: '— Select —'),
               _TxtField('Street Name *', s._streetCtrl, 'Street name'),
-              _TxtField('Door No. *', s._doorCtrl, 'e.g. 12A'),
+              _TxtField('Door No. *', s._doorCtrl, 'e.g. 12/A'),
               const SizedBox(height: 12),
-              _TxtField('Family Register No.', s._famnoCtrl, 'FR number'),
+              _TxtField('Family Register No.', s._famnoCtrl, 'FRN-YYYY-XXXXXX'),
               _TxtField('ABHA ID', s._abhaCtrl, 'ABHA number'),
               _TxtField('PMJA No.', s._pmjaCtrl, 'PMJA number'),
               _TxtField('PHR No.', s._phrCtrl, 'PHR number'),
@@ -322,7 +332,17 @@ class _Step0Family extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _TxtField('Family Head Name *', s._headCtrl, 'Name'),
-              _TxtField('Phone Number *', s._phoneCtrl, 'Mobile number', keyboardType: TextInputType.phone),
+              _TxtField('Phone Number *', s._phoneCtrl, 'Mobile number',
+                keyboardType: TextInputType.phone,
+                maxLength: 10,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                validator: (v) {
+                  if (v == null || v.isEmpty) return null;
+                  if (v.length != 10) return 'Enter 10 digits';
+                  if (!RegExp(r'^[6-9]').hasMatch(v)) return 'Starts with 6-9';
+                  return null;
+                },
+              ),
               const SizedBox(height: 12),
               _ChipRow('BPL / APL Status *', ['BPL', 'APL', 'Unknown'], s._bpl, (v) => s.setState(() { s._bpl = v; s._saveDraft(); })),
               const SizedBox(height: 12),
@@ -477,8 +497,34 @@ class _DraftBanner extends StatelessWidget {
   }
 }
 
-Widget _TxtField(String label, TextEditingController ctrl, String hint, {bool required = false, TextInputType? keyboardType}) {
-  return Padding(padding: const EdgeInsets.only(bottom: 10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [FieldLabel(text: label, required: required), TextField(controller: ctrl, keyboardType: keyboardType, decoration: InputDecoration(hintText: hint))]));
+Widget _TxtField(String label, TextEditingController ctrl, String hint, {
+  bool required = false,
+  TextInputType? keyboardType,
+  int? maxLength,
+  List<TextInputFormatter>? inputFormatters,
+  String? Function(String?)? validator,
+}) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FieldLabel(text: label, required: required),
+        TextFormField(
+          controller: ctrl,
+          keyboardType: keyboardType,
+          maxLength: maxLength,
+          inputFormatters: inputFormatters,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          validator: validator,
+          decoration: InputDecoration(
+            hintText: hint,
+            counterText: "", // Hide character counter
+          ),
+        )
+      ]
+    )
+  );
 }
 Widget _DropField(String label, List<String> opts, String? value, ValueChanged<String?> onChanged, {String hint = 'Select…'}) {
   return Padding(padding: const EdgeInsets.only(bottom: 10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [FieldLabel(text: label), DropdownButtonFormField<String>(isExpanded: true, value: (value != null && opts.contains(value)) ? value : null, hint: Text(hint, style: const TextStyle(fontSize: 12)), decoration: const InputDecoration(), items: opts.map((o) => DropdownMenuItem(value: o, child: Text(o, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis))).toList(), onChanged: onChanged)]));

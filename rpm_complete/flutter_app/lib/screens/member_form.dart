@@ -2,6 +2,7 @@
 // Add/Edit individual family member
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/survey_models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
@@ -16,7 +17,6 @@ class MemberFormScreen extends StatefulWidget {
 
 class _MemberFormScreenState extends State<MemberFormScreen> {
   final _nameCtrl = TextEditingController();
-  final _memnoCtrl = TextEditingController();
   final _dobCtrl = TextEditingController();
   final _ageCtrl = TextEditingController();
   final _aadharCtrl = TextEditingController();
@@ -33,6 +33,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
   final _cdOtherCtrl = TextEditingController();
   final _treatmentOtherCtrl = TextEditingController();
 
+  String? _memno;
   String? _gender;
   String? _relationship;
   String? _blood;
@@ -56,7 +57,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
     if (widget.existing != null) {
       final m = widget.existing!;
       _nameCtrl.text = m.name;
-      _memnoCtrl.text = m.memno;
+      _memno = m.memno.isEmpty ? null : m.memno;
       _dobCtrl.text = m.dob;
       _ageCtrl.text = m.age;
       _calculateAge(m.dob); // Initial age calculation
@@ -153,6 +154,17 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
       return;
     }
 
+    final mobile = _mobileCtrl.text.trim();
+    if (mobile.isNotEmpty) {
+      if (mobile.length != 10 || !RegExp(r'^[6-9]').hasMatch(mobile)) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Invalid Mobile Number (Must be 10 digits starting with 6-9)'),
+          backgroundColor: AppTheme.rose,
+        ));
+        return;
+      }
+    }
+
     final relVal = (_relationship == 'Others') ? _relOtherCtrl.text.trim() : (_relationship ?? '');
     final eduVal = (_edu == 'Others') ? _eduOtherCtrl.text.trim() : (_edu ?? '');
     final occVal = (_occ == 'Others') ? _occOtherCtrl.text.trim() : (_occ ?? '');
@@ -166,7 +178,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
       context,
       FamilyMember(
         name: _nameCtrl.text.trim(),
-        memno: _memnoCtrl.text.trim(),
+        memno: _memno ?? '',
         rel: relVal,
         dob: _dobCtrl.text.trim(),
         age: _ageCtrl.text.trim(),
@@ -213,7 +225,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
             // Basic Info
             _sectionHeader('👤 Basic Information'),
             _txt('Name *', _nameCtrl, 'Full name'),
-            _txt('Member No.', _memnoCtrl, 'e.g. 001'),
+            _drop('Member No.', List.generate(20, (i) => (i + 1).toString()), _memno, (v) => setState(() => _memno = v), hint: '— Select —'),
             _drop('Relationship', [
               'Head of Family',
               'Wife',
@@ -239,8 +251,21 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
             _txt('Date of Birth', _dobCtrl, 'YYYY-MM-DD', isDate: true, onDateSelected: (v) => _calculateAge(v)),
             _txt('Age', _ageCtrl, 'Age in years', keyboardType: TextInputType.number),
             _chip('Gender', ['Male', 'Female', 'Other'], _gender, (v) => setState(() => _gender = v)),
-            _txt('Aadhar No.', _aadharCtrl, '12-digit number', keyboardType: TextInputType.number),
-            _txt('Mobile No.', _mobileCtrl, '10-digit number', keyboardType: TextInputType.phone),
+            _txt('Aadhar No.', _aadharCtrl, '12-digit number',
+              keyboardType: TextInputType.number,
+              maxLength: 12,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly]),
+            _txt('Mobile No.', _mobileCtrl, '10-digit number',
+              keyboardType: TextInputType.phone,
+              maxLength: 10,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              validator: (v) {
+                if (v == null || v.isEmpty) return null;
+                if (v.length != 10) return 'Enter 10 digits';
+                if (!RegExp(r'^[6-9]').hasMatch(v)) return 'Starts with 6-9';
+                return null;
+              },
+            ),
             _chip('Blood Group', ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'],
                 _blood, (v) => setState(() => _blood = v)),
             _chip('Marital Status', ['Unmarried', 'Married', 'Widowed', 'Divorced', 'Separated'],
@@ -396,17 +421,21 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
   );
 
   Widget _txt(String label, TextEditingController ctrl, String hint,
-      {TextInputType? keyboardType, bool isDate = false, ValueChanged<String>? onDateSelected}) {
+      {TextInputType? keyboardType, bool isDate = false, ValueChanged<String>? onDateSelected, int? maxLength, List<TextInputFormatter>? inputFormatters, String? Function(String?)? validator}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           FieldLabel(text: label),
-          TextField(
+          TextFormField(
             controller: ctrl,
             keyboardType: keyboardType,
             readOnly: isDate,
+            maxLength: maxLength,
+            inputFormatters: inputFormatters,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            validator: validator,
             onTap: isDate ? () async {
               final d = await showDatePicker(
                 context: context,
@@ -420,7 +449,11 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                 if (onDateSelected != null) onDateSelected(dateStr);
               }
             } : null,
-            decoration: InputDecoration(hintText: hint, suffixIcon: isDate ? const Icon(Icons.calendar_today, size: 18) : null),
+            decoration: InputDecoration(
+              hintText: hint,
+              suffixIcon: isDate ? const Icon(Icons.calendar_today, size: 18) : null,
+              counterText: "",
+            ),
           ),
         ],
       ),

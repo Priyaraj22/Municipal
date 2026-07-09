@@ -10,6 +10,20 @@ function validateSurveyPayload(data) {
   if (!data.door)   errors.push('door is required');
   if (!data.street) errors.push('street is required');
   if (!data.head)   errors.push('head (family head name) is required');
+  if (!data.phone)  errors.push('phone number is required');
+
+  const mobileRegex = /^[6-9]\d{9}$/;
+  if (data.phone && !mobileRegex.test(data.phone)) {
+    errors.push('Family head phone number must be 10 digits starting with 6, 7, 8, or 9');
+  }
+
+  if (data.members) {
+    data.members.forEach((m, idx) => {
+      if (m.mobile && !mobileRegex.test(m.mobile)) {
+        errors.push(`Member ${m.name || idx + 1} mobile number must be 10 digits starting with 6, 7, 8, or 9`);
+      }
+    });
+  }
 
   if (!data.members || !data.members.length) {
     errors.push('At least one family member is required');

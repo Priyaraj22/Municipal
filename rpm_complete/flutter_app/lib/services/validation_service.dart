@@ -17,6 +17,13 @@ class ValidationService {
     // 1. Basic Mandatory Fields
     if (survey.ward.isEmpty) errors.add('❌ Please select a ward.');
     if (survey.head.isEmpty) errors.add('❌ Family Head Name cannot be empty.');
+    if (survey.phone.isEmpty) {
+      errors.add('❌ Family Head Phone Number is required.');
+    } else if (survey.phone.length != 10) {
+      errors.add('❌ Family Head: Phone number must contain exactly 10 digits.');
+    } else if (!RegExp(r'^[6-9]').hasMatch(survey.phone)) {
+      errors.add('❌ Family Head: Phone number must start with 6, 7, 8, or 9.');
+    }
     if (survey.door.isEmpty) errors.add('❌ Door No. is required.');
     if (survey.street.isEmpty) errors.add('❌ Street Name is required.');
 

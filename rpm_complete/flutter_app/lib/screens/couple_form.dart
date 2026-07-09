@@ -194,8 +194,8 @@ class _CoupleFormScreenState extends State<CoupleFormScreen> {
           children: [
             // ── Section 1: Identification ──────────────────────────────────
             _sec('🪪 Identification / அடையாளம்'),
-            _txt('FR No.', _frnoCtrl, 'Family register number'),
-            _txt('EC No.', _ecnoCtrl, 'Eligible couple number'),
+            _txt('FR No.', _frnoCtrl, 'FRN-YYYY-XXXXXX'),
+            _txt('EC No.', _ecnoCtrl, 'EC-YYYY-XXXXX'),
             _txt('RCH ID', _rchidCtrl, 'RCH ID (wife)'),
 
             // ── Section 2: Couple Details ──────────────────────────────────

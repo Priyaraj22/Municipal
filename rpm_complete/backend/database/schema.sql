@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS surveys (
   pmja            TEXT,                      -- PMJA No.
   phr             TEXT,                      -- PHR No.
   smartcard       TEXT,                      -- Smart Card ID
+  phone           TEXT NOT NULL CHECK (phone ~ '^[6-9][0-9]{9}$'),
 
   -- Household details
   bpl             TEXT,                      -- BPL / APL
@@ -265,7 +266,7 @@ ON CONFLICT (username) DO NOTHING;
 CREATE TABLE IF NOT EXISTS complaints (
     id SERIAL PRIMARY KEY,
     survey_id INTEGER NOT NULL REFERENCES surveys(id) ON DELETE CASCADE,
-    citizen_mobile TEXT NOT NULL,
+    citizen_mobile TEXT NOT NULL CHECK (citizen_mobile ~ '^[6-9][0-9]{9}$'),
     issue_type TEXT NOT NULL,
     description TEXT,
     street TEXT NOT NULL,
