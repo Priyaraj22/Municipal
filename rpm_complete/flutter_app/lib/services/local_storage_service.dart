@@ -102,33 +102,27 @@ class LocalStorageService {
     final file = await _getFile();
     await file.writeAsString(json.encode(surveys.map((s) => s.toJson()).toList()));
 
-    // AUTOMATIC EXPORT: If submitted, update the JSON file in the public folder immediately
+    // AUTOMATIC EXPORT: Ensure master files are updated immediately on save/edit
     if (survey.status == 'Submitted') {
       try {
         await autoExportSurveyJSON(survey);
+        await exportToJSON(silent: true);
       } catch (_) {
         // Fail silently during auto-save
       }
     }
   }
 
-  /// Automatically exports a single survey as a JSON file named: survey_ward_no_name_of_family_head
+  /// Automatically exports a single survey as a JSON file.
+  /// Uses a stable ID-based filename to ensure edits overwrite the same file.
   static Future<void> autoExportSurveyJSON(Survey survey) async {
     final ok = await _requestPermission();
     if (!ok) return;
 
     final directory = await _getExportDirectory();
-    
-    // Extract numeric ward part if possible, otherwise use clean ward name
-    // e.g. "Ward 12" -> "12"
-    final wardNum = survey.ward.replaceAll(RegExp(r'[^0-9]'), '');
-    final wardLabel = wardNum.isNotEmpty ? wardNum : survey.ward.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-    
-    // Clean head name for filename
-    final headClean = survey.head.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-    
-    // Format: survey_[ward]_[name].json
-    final fileName = 'survey_${wardLabel}_$headClean.json';
+
+    // Stable filename using unique local ID
+    final fileName = 'survey_record_${survey.id}.json';
     
     final filePath = '${directory.path}/$fileName';
     final content = json.encode(survey.toJson());
@@ -139,26 +133,21 @@ class LocalStorageService {
   static Future<void> deleteSurvey(String id) async {
     final surveys = await getAllSurveys();
     
-    // Find the survey to delete its public file as well
-    final index = surveys.indexWhere((s) => s.id == id);
-    if (index != -1) {
-      final survey = surveys[index];
-      try {
-        final directory = await _getExportDirectory();
-        final wardNum = survey.ward.replaceAll(RegExp(r'[^0-9]'), '');
-        final wardLabel = wardNum.isNotEmpty ? wardNum : survey.ward.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-        final headClean = survey.head.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-        final fileName = 'survey_${wardLabel}_$headClean.json';
-        final publicFile = File('${directory.path}/$fileName');
-        if (await publicFile.exists()) {
-          await publicFile.delete();
-        }
-      } catch (_) {}
-    }
+    // Find the survey to delete its individual exported file as well
+    try {
+      final directory = await _getExportDirectory();
+      final individualFile = File('${directory.path}/survey_record_$id.json');
+      if (await individualFile.exists()) {
+        await individualFile.delete();
+      }
+    } catch (_) {}
 
     surveys.removeWhere((s) => s.id == id);
     final file = await _getFile();
     await file.writeAsString(json.encode(surveys.map((s) => s.toJson()).toList()));
+
+    // Update master records after deletion
+    await exportToJSON(silent: true);
   }
 
   static Future<String> exportToExcel() async {
@@ -172,26 +161,54 @@ class LocalStorageService {
     xl.Sheet sheetObject = excel['Surveys'];
 
     sheetObject.appendRow([
-      xl.TextCellValue('Survey ID'), xl.TextCellValue('Ward'), xl.TextCellValue('Door No'),
+      xl.TextCellValue('Local ID'), xl.TextCellValue('Survey ID'), xl.TextCellValue('Ward'), xl.TextCellValue('Door No'),
       xl.TextCellValue('Street'), xl.TextCellValue('Family Head'), xl.TextCellValue('Phone Number'),
       xl.TextCellValue('Ration Card'), xl.TextCellValue('ABHA'), xl.TextCellValue('PMJA'),
       xl.TextCellValue('PHR'), xl.TextCellValue('Smart Card'), xl.TextCellValue('BPL/APL'),
       xl.TextCellValue('Caste'), xl.TextCellValue('Status'), xl.TextCellValue('Date'),
       xl.TextCellValue('Surveyor'),
+      xl.TextCellValue('HH Size'), xl.TextCellValue('Waste/Day'), xl.TextCellValue('Waste Types'),
+      xl.TextCellValue('Disposal'), xl.TextCellValue('Segregation'), xl.TextCellValue('Freq'),
     ]);
 
     for (var s in surveys) {
       sheetObject.appendRow([
-        xl.TextCellValue(s.id ?? ''), xl.TextCellValue(s.ward), xl.TextCellValue(s.door),
-        xl.TextCellValue(s.street), xl.TextCellValue(s.head), xl.TextCellValue(s.phone),
-        xl.TextCellValue(s.ration), xl.TextCellValue(s.abha), xl.TextCellValue(s.pmja),
-        xl.TextCellValue(s.phr), xl.TextCellValue(s.smartcard), xl.TextCellValue(s.bpl),
-        xl.TextCellValue(s.caste), xl.TextCellValue(s.status), xl.TextCellValue(s.date ?? ''),
+        xl.TextCellValue(s.id ?? ''),
+        xl.TextCellValue(s.surveyId ?? ''),
+        xl.TextCellValue(s.ward),
+        xl.TextCellValue(s.door),
+        xl.TextCellValue(s.street),
+        xl.TextCellValue(s.head),
+        xl.TextCellValue(s.phone),
+        xl.TextCellValue(s.ration),
+        xl.TextCellValue(s.abha),
+        xl.TextCellValue(s.pmja),
+        xl.TextCellValue(s.phr),
+        xl.TextCellValue(s.smartcard),
+        xl.TextCellValue(s.bpl),
+        xl.TextCellValue(s.caste),
+        xl.TextCellValue(s.status),
+        xl.TextCellValue(s.date ?? ''),
         xl.TextCellValue(s.collector ?? ''),
+        xl.TextCellValue(s.wasteSize),
+        xl.TextCellValue(s.wasteAmount),
+        xl.TextCellValue(s.wasteTypes),
+        xl.TextCellValue(s.wasteDisposal),
+        xl.TextCellValue(s.wasteSegregation),
+        xl.TextCellValue(s.wasteFrequency),
       ]);
     }
 
-    // Save XL to public Download folder directly (NOT in the subfolder)
+    final directory = await _getExportDirectory();
+
+    // Save to a MASTER Excel file in the app folder (always overwritten on export)
+    final masterPath = '${directory.path}/Master_Survey_Data.xlsx';
+    final fileBytes = excel.save();
+    if (fileBytes != null) {
+      await File(masterPath).writeAsBytes(fileBytes, flush: true);
+    }
+
+    // Also save a timestamped copy to public Downloads for the user
     Directory? downloadDir;
     if (Platform.isAndroid) {
       downloadDir = Directory('/storage/emulated/0/Download');
@@ -199,13 +216,12 @@ class LocalStorageService {
       downloadDir = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
     }
     
-    final filePath = '${downloadDir!.path}/Rajapalayam_Survey_Report_${DateTime.now().millisecondsSinceEpoch}.xlsx';
-    final fileBytes = excel.save();
+    final filePath = '${downloadDir!.path}/Rajapalayam_Report_${DateTime.now().millisecondsSinceEpoch}.xlsx';
     if (fileBytes != null) {
-      final file = File(filePath);
-      await file.writeAsBytes(fileBytes, flush: true);
+      await File(filePath).writeAsBytes(fileBytes, flush: true);
     }
-    return filePath;
+
+    return masterPath; // Return the master path for opening
   }
 
   static Future<String> exportToXML() async {
@@ -228,6 +244,7 @@ class LocalStorageService {
           builder.element('Survey', nest: () {
             // Location & Identity
             builder.element('SurveyID', nest: s.id);
+            builder.element('FormalID', nest: s.surveyId ?? '');
             builder.element('Ward', nest: s.ward);
             builder.element('DoorNo', nest: s.door);
             builder.element('Street', nest: s.street);
@@ -387,7 +404,7 @@ class LocalStorageService {
     });
 
     final directory = await _getExportDirectory();
-    final filePath = '${directory.path}/Survey_${DateTime.now().millisecondsSinceEpoch}.xml';
+    final filePath = '${directory.path}/Master_Survey_Data.xml';
     final document = builder.buildDocument();
     await File(filePath).writeAsString(document.toXmlString(pretty: true), flush: true);
     return filePath;
@@ -403,7 +420,7 @@ class LocalStorageService {
     final surveys = allSurveys.where((s) => s.status == 'Submitted').toList();
 
     final directory = await _getExportDirectory();
-    // Use a fixed name for the master backup so it stays updated
+    // Fixed name for the master backup ensures edits reflect in the same file
     final filePath = '${directory.path}/Master_Survey_Records.json';
     final content = json.encode(surveys.map((s) => s.toJson()).toList());
     final file = File(filePath);
