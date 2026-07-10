@@ -287,6 +287,13 @@ class Survey {
   String? collector;
   String? collectorWard;
   String? date;
+  // Solid Waste Management
+  String wasteSize;
+  String wasteAmount;
+  String wasteTypes;
+  String wasteDisposal;
+  String wasteSegregation;
+  String wasteFrequency;
   List<FamilyMember> members;
   List<EligibleCouple> couples;
 
@@ -314,6 +321,12 @@ class Survey {
     this.collector,
     this.collectorWard,
     this.date,
+    this.wasteSize = '',
+    this.wasteAmount = '',
+    this.wasteTypes = '',
+    this.wasteDisposal = '',
+    this.wasteSegregation = '',
+    this.wasteFrequency = '',
     List<FamilyMember>? members,
     List<EligibleCouple>? couples,
   })  : members = members ?? [],
@@ -343,6 +356,12 @@ class Survey {
         collector:     j['collector'],
         collectorWard: j['collectorWard'] ?? j['collector_ward'],
         date:          j['date'] ?? j['survey_date'],
+        wasteSize:     j['wasteSize'] ?? '',
+        wasteAmount:   j['wasteAmount'] ?? '',
+        wasteTypes:    j['wasteTypes'] ?? '',
+        wasteDisposal: j['wasteDisposal'] ?? '',
+        wasteSegregation: j['wasteSegregation'] ?? '',
+        wasteFrequency: j['wasteFrequency'] ?? '',
         members: (j['members'] as List? ?? [])
             .map((m) => FamilyMember.fromJson(m as Map<String, dynamic>))
             .toList(),
@@ -362,6 +381,12 @@ class Survey {
         'status': status,
         'collector': collector, 'collectorWard': collectorWard,
         'date': date,
+        'wasteSize': wasteSize,
+        'wasteAmount': wasteAmount,
+        'wasteTypes': wasteTypes,
+        'wasteDisposal': wasteDisposal,
+        'wasteSegregation': wasteSegregation,
+        'wasteFrequency': wasteFrequency,
         'members': members.map((m) => m.toJson()).toList(),
         'couples': couples.map((c) => c.toJson()).toList(),
       };
