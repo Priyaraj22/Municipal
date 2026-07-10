@@ -79,9 +79,9 @@ class LocalStorageService {
 
   static Future<void> saveSurvey(Survey survey) async {
     final surveys = await getAllSurveys();
+    String? oldFileName;
     
     if (survey.id == null) {
-      // Find the highest numeric ID and increment it
       int maxId = 0;
       for (var s in surveys) {
         final sid = int.tryParse(s.id ?? '0') ?? 0;
@@ -90,9 +90,15 @@ class LocalStorageService {
       survey.id = (maxId + 1).toString();
       surveys.add(survey);
     } else {
-      // Overwrite existing record
       final index = surveys.indexWhere((s) => s.id == survey.id);
       if (index != -1) {
+        // Before overwriting, remember the old filename to delete it
+        final oldS = surveys[index];
+        final wN = oldS.ward.replaceAll(RegExp(r'[^0-9]'), '');
+        final wL = wN.isNotEmpty ? wN : oldS.ward.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+        final hC = oldS.head.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+        oldFileName = 'survey_${wL}_$hC.json';
+
         surveys[index] = survey;
       } else {
         surveys.add(survey);
@@ -102,34 +108,36 @@ class LocalStorageService {
     final file = await _getFile();
     await file.writeAsString(json.encode(surveys.map((s) => s.toJson()).toList()));
 
-    // AUTOMATIC EXPORT: If submitted, update the JSON file in the public folder immediately
     if (survey.status == 'Submitted') {
       try {
-        await autoExportSurveyJSON(survey);
-      } catch (_) {
-        // Fail silently during auto-save
-      }
+        await autoExportSurveyJSON(survey, oldFileNameToDelete: oldFileName);
+      } catch (_) {}
     }
   }
 
-  /// Automatically exports a single survey as a JSON file named: survey_ward_no_name_of_family_head
-  static Future<void> autoExportSurveyJSON(Survey survey) async {
+  /// Automatically exports a single survey as a JSON file. 
+  /// If the name/ward changed, it deletes the old file to prevent redundancy.
+  static Future<void> autoExportSurveyJSON(Survey survey, {String? oldFileNameToDelete}) async {
     final ok = await _requestPermission();
     if (!ok) return;
 
     final directory = await _getExportDirectory();
     
-    // Extract numeric ward part if possible, otherwise use clean ward name
-    // e.g. "Ward 12" -> "12"
+    // Delete old file if it exists and filename is different
+    if (oldFileNameToDelete != null) {
+      try {
+        final oldFile = File('${directory.path}/$oldFileNameToDelete');
+        if (await oldFile.exists()) {
+          await oldFile.delete();
+        }
+      } catch (_) {}
+    }
+    
     final wardNum = survey.ward.replaceAll(RegExp(r'[^0-9]'), '');
     final wardLabel = wardNum.isNotEmpty ? wardNum : survey.ward.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-    
-    // Clean head name for filename
     final headClean = survey.head.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
     
-    // Format: survey_[ward]_[name].json
     final fileName = 'survey_${wardLabel}_$headClean.json';
-    
     final filePath = '${directory.path}/$fileName';
     final content = json.encode(survey.toJson());
     final file = File(filePath);
